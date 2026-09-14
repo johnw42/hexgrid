@@ -1,6 +1,12 @@
 use eframe::egui;
 use egui::Pos2;
-use hexgrid::{corner::HexCorner, edge::HexEdge, grid::HexGrid, pos::HexPos};
+use hexgrid::{
+    Cartesian,
+    corner::HexCorner,
+    edge::HexEdge,
+    grid::HexGrid,
+    pos::{HexPos, NearestCorner, NearestEdge},
+};
 
 fn main() {
     let native_options = eframe::NativeOptions::default();
@@ -82,7 +88,7 @@ struct HexView {
     pub grid: HexGrid<()>,
 }
 
-fn reflect_vertical((x, y): (f32, f32)) -> (f32, f32) {
+fn reflect_vertical((x, y): Cartesian) -> Cartesian {
     (x, -y)
 }
 
@@ -93,27 +99,26 @@ impl egui::Widget for HexView {
 
         let HexView { radius, .. } = self;
 
-        let rect_offset = rect.center() - egui::pos2(0.0, 0.0);
+        let rect_offset = rect.center().to_vec2();
+        let widget_to_hex = |pos: Pos2| -> Cartesian {
+            let egui::Pos2 { x, y } = (pos - rect_offset) / radius;
+            reflect_vertical((x, y))
+        };
+        let hex_to_widget = |(x, y): Cartesian| -> egui::Pos2 {
+            (rect_offset + egui::Vec2::from(reflect_vertical((x, y))) * radius).to_pos2()
+        };
 
-        let hover_hex = ui
+        let latest_pos = ui
             .ctx()
             .input(|input| input.pointer.latest_pos())
-            .map(|pos| {
-                let pos = (pos - rect_offset) / radius;
-                HexPos::from_center(reflect_vertical((pos.x, pos.y)))
-            });
+            .map(widget_to_hex);
+        let hover_hex = latest_pos.map(HexPos::from_center);
 
-        for (i, pos) in HexPos::range(-3, -3, 3, 2).enumerate() {
-            let hex_offset =
-                rect_offset + egui::Vec2::from(reflect_vertical(pos.center())) * radius;
-
+        for pos in HexPos::range(-3, -3, 3, 3) {
             painter.add(egui::Shape::convex_polygon(
                 HexCorner::all()
                     .into_iter()
-                    .map(|corner| {
-                        let (x, y) = corner.offset_from_center(radius);
-                        egui::pos2(x, y) + hex_offset
-                    })
+                    .map(|corner| hex_to_widget(pos.corner_pos(corner)))
                     .collect(),
                 if hover_hex == Some(pos) {
                     egui::Color32::RED
@@ -124,28 +129,34 @@ impl egui::Widget for HexView {
             ));
 
             painter.text(
-                egui::pos2(0.0, 0.0) + hex_offset,
+                hex_to_widget(pos.center_pos()),
                 egui::Align2::CENTER_CENTER,
-                format!("{}: {}", i, pos),
+                format!("{}", pos),
                 egui::TextStyle::Body.resolve(ui.style()),
                 egui::Color32::WHITE,
             );
+        }
 
-            // for [d1, d2] in HexEdge::all().into_iter().map(|edge| edge.ends()) {
-            //     painter.line_segment(
-            //         [
-            //             egui::Pos2::from(d1.offset_from_center(radius)) + hex_offset,
-            //             egui::Pos2::from(d2.offset_from_center(radius)) + hex_offset,
-            //         ],
-            //         egui::Stroke::new(
-            //             1.0,
-            //             if hover_hex == Some(pos) {
-            //             } else {
-            //                 egui::Color32::WHITE
-            //             },
-            //         ),
-            //     );
-            // }
+        if let Some(hover_hex) = hover_hex {
+            let pos = latest_pos.unwrap();
+
+            let NearestEdge { distance, edge } = hover_hex.nearest_edge(pos);
+            if distance < 0.5 {
+                painter.line_segment(
+                    [
+                        hex_to_widget(hover_hex.corner_pos(edge.ends()[0])),
+                        hex_to_widget(hover_hex.corner_pos(edge.ends()[1])),
+                    ],
+                    egui::Stroke::new(3.0, egui::Color32::GREEN),
+                );
+            }
+
+            let NearestCorner {
+                distance, point, ..
+            } = hover_hex.nearest_corner(pos);
+            if distance < 0.5 {
+                painter.circle_filled(hex_to_widget(point), 5.0, egui::Color32::YELLOW);
+            }
         }
 
         response

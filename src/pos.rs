@@ -6,9 +6,21 @@
 //
 // 0,0   2,0   4,0
 
-use std::{f32::consts::FRAC_PI_3, fmt::Display};
+use std::f32::consts::{FRAC_PI_3, FRAC_PI_6};
+use std::fmt::Display;
 
-use crate::{HexCoord, corner::HexCorner, edge::HexEdge};
+use crate::{Cartesian, Distance, HexCoord, corner::HexCorner, edge::HexEdge};
+
+pub struct NearestCorner {
+    pub corner: HexCorner,
+    pub distance: Distance,
+    pub point: Cartesian,
+}
+
+pub struct NearestEdge {
+    pub edge: HexEdge,
+    pub distance: Distance,
+}
 
 /// A position in a hexagonal grid, represented by two coordinates (u, v), where
 /// u + v is always even.  The origin (0, 0) is at the bottom left corner of the
@@ -103,22 +115,27 @@ impl HexPos {
         HexPos::new(q, 2 * r + q)
     }
 
-    pub fn center(&self) -> (f32, f32) {
-        let HexPos(x, y) = *self;
-
+    pub fn center_pos(self) -> Cartesian {
+        let HexPos(x, y) = self;
         let y_scale = (3.0_f32).sqrt() / 2.0;
         let x_scale = 1.5;
-        (x_scale * (x as f32), y as f32 * y_scale)
+        (x as f32 * x_scale, y as f32 * y_scale)
     }
 
-    pub fn corners(&self) -> [(f32, f32); 6] {
-        let (cx, cy) = self.center();
+    pub fn corners_pos(self) -> [Cartesian; 6] {
+        let (cx, cy) = self.center_pos();
         let mut corners = [(0.0, 0.0); 6];
         for (i, corner) in corners.iter_mut().enumerate() {
             let angle = (i as f32) * std::f32::consts::FRAC_PI_3;
             *corner = (cx + angle.cos(), cy + angle.sin());
         }
         corners
+    }
+
+    pub fn corner_pos(self, corner: HexCorner) -> Cartesian {
+        let (cx, cy) = self.center_pos();
+        let angle = corner.to_angle();
+        (cx + angle.cos(), cy + angle.sin())
     }
 
     // pub fn shift(&self, direction: HexPoint) -> Self {
@@ -160,23 +177,40 @@ impl HexPos {
         }
     }
 
-    pub fn nearest_edge(self, point: (f32, f32)) -> HexEdge {
-        let (cx, cy) = self.center();
+    pub fn nearest_edge(self, point: Cartesian) -> NearestEdge {
+        let (cx, cy) = self.center_pos();
+        let (px, py) = point;
         let dx = point.0 - cx;
         let dy = point.1 - cy;
         let angle = dy.atan2(dx);
-        let index =
-            ((angle + std::f32::consts::FRAC_PI_6) / std::f32::consts::FRAC_PI_3).round() as i32;
-        HexEdge::all()[index.rem_euclid(6) as usize]
+        let index = ((angle + FRAC_PI_6) / FRAC_PI_3).round() as i32;
+        let edge = HexEdge::all()[(index - 1).rem_euclid(6) as usize];
+        let corner = edge.ends()[0];
+        let (cpx, cpy) = self.corner_pos(corner);
+        let slope = match edge {
+            HexEdge::TopRight | HexEdge::BottomLeft => -FRAC_PI_3.tan(),
+            HexEdge::Top | HexEdge::Bottom => 0.0,
+            HexEdge::TopLeft | HexEdge::BottomRight => FRAC_PI_3.tan(),
+        };
+        let distance = (slope * (px - cpx) - (py - cpy)).abs() / (slope * slope + 1.0).sqrt();
+        NearestEdge { edge, distance }
     }
 
-    pub fn nearest_corner(self, point: (f32, f32)) -> HexCorner {
-        let (cx, cy) = self.center();
-        let dx = point.0 - cx;
-        let dy = point.1 - cy;
+    /// Gets the nearest corner of this hex to the given point, and the distance to that corner.
+    pub fn nearest_corner(self, point: Cartesian) -> NearestCorner {
+        let (cx, cy) = self.center_pos();
+        let (px, py) = point;
+        let dx = px - cx;
+        let dy = py - cy;
         let angle = dy.atan2(dx);
-        let index = ((angle + std::f32::consts::FRAC_PI_6 / 2.0) / std::f32::consts::FRAC_PI_3)
-            .round() as i32;
-        HexCorner::all()[index.rem_euclid(6) as usize]
+        let index = ((angle + FRAC_PI_6 / 2.0) / FRAC_PI_3).round() as i32;
+        let corner = HexCorner::all()[index.rem_euclid(6) as usize];
+        let (cpx, cpy) = self.corner_pos(corner);
+        let distance = (cpx - px).hypot(cpy - py);
+        NearestCorner {
+            corner,
+            distance,
+            point: (cpx, cpy),
+        }
     }
 }
