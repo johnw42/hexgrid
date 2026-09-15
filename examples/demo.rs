@@ -1,9 +1,8 @@
 use eframe::egui;
 use egui::Pos2;
 use hexgrid::{
-    Cartesian,
+    Cartesian, HexCoord,
     corner::HexCorner,
-    edge::HexEdge,
     grid::HexGrid,
     pos::{HexPos, NearestCorner, NearestEdge},
 };
@@ -17,19 +16,12 @@ fn main() {
     );
 }
 
-#[derive(PartialEq)]
-enum Enum {
-    First,
-    Second,
-    Third,
-}
-
 struct MyEguiApp {
-    my_boolean: bool,
-    my_string: String,
-    my_f32: f32,
-    my_enum: Enum,
-    my_image: egui::TextureId,
+    left: HexCoord,
+    top: HexCoord,
+    right: HexCoord,
+    bottom: HexCoord,
+    grid: HexGrid<(), (), ()>,
 }
 
 impl MyEguiApp {
@@ -39,11 +31,11 @@ impl MyEguiApp {
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
         // for e.g. egui::PaintCallback.
         Self {
-            my_boolean: false,
-            my_string: String::new(),
-            my_f32: 0.0,
-            my_enum: Enum::First,
-            my_image: egui::TextureId::default(),
+            left: 3,
+            top: 3,
+            right: 3,
+            bottom: 3,
+            grid: HexGrid::new(-3, -3, 3, 3),
         }
     }
 }
@@ -51,70 +43,75 @@ impl MyEguiApp {
 impl eframe::App for MyEguiApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ui, |ui| {
-            ui.label("This is a label");
-            ui.hyperlink("https://github.com/emilk/egui");
-            ui.text_edit_singleline(&mut self.my_string);
-            if ui.button("Click me").clicked() {
-                println!("Clicked!");
-            }
-            ui.add(egui::Slider::new(&mut self.my_f32, 0.0..=100.0));
-            ui.add(egui::DragValue::new(&mut self.my_f32));
-
-            ui.checkbox(&mut self.my_boolean, "Checkbox");
-
-            ui.horizontal(|ui| {
-                ui.radio_value(&mut self.my_enum, Enum::First, "First");
-                ui.radio_value(&mut self.my_enum, Enum::Second, "Second");
-                ui.radio_value(&mut self.my_enum, Enum::Third, "Third");
+            egui::Grid::new("my_grid").show(ui, |ui| {
+                ui.label("Left");
+                ui.add(egui::Slider::new(&mut self.left, 0..=10));
+                ui.end_row();
+                ui.label("Top");
+                ui.add(egui::Slider::new(&mut self.top, 0..=10));
+                ui.end_row();
+                ui.label("Right");
+                ui.add(egui::Slider::new(&mut self.right, 0..=10));
+                ui.end_row();
+                ui.label("Bottom");
+                ui.add(egui::Slider::new(&mut self.bottom, 0..=10));
+                ui.end_row();
             });
+
+            // if ui.button("Regenerate").clicked() {
+            //     self.grid = HexGrid::new(-self.left, -self.top, self.right, self.bottom);
+            // }
+            if self.top != -self.grid.top()
+                || self.left != -self.grid.left()
+                || self.right != self.grid.right()
+                || self.bottom != self.grid.bottom()
+            {
+                self.grid = HexGrid::new(-self.left, -self.top, self.right, self.bottom);
+            }
 
             ui.separator();
 
-            //ui.image((self.my_image, egui::Vec2::new(640.0, 480.0)));
-
             ui.add(HexView {
-                radius: 50.0,
-                grid: HexGrid::new(3, 3),
-            });
-
-            ui.collapsing("Click to see what is hidden!", |ui| {
-                ui.label("Not much, as it turns out");
+                scale: 50.0,
+                grid: &mut self.grid,
             });
         });
     }
 }
-struct HexView {
-    pub radius: f32,
-    pub grid: HexGrid<()>,
+struct HexView<'g> {
+    pub scale: f32,
+    pub grid: &'g mut HexGrid<(), (), ()>,
 }
 
 fn reflect_vertical((x, y): Cartesian) -> Cartesian {
     (x, -y)
 }
 
-impl egui::Widget for HexView {
+impl<'g> egui::Widget for HexView<'g> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::hover());
         let painter = ui.painter_at(rect);
 
-        let HexView { radius, .. } = self;
+        let HexView { scale, .. } = self;
 
         let rect_offset = rect.center().to_vec2();
         let widget_to_hex = |pos: Pos2| -> Cartesian {
-            let egui::Pos2 { x, y } = (pos - rect_offset) / radius;
+            let egui::Pos2 { x, y } = (pos - rect_offset) / scale;
             reflect_vertical((x, y))
         };
         let hex_to_widget = |(x, y): Cartesian| -> egui::Pos2 {
-            (rect_offset + egui::Vec2::from(reflect_vertical((x, y))) * radius).to_pos2()
+            (rect_offset + egui::Vec2::from(reflect_vertical((x, y))) * scale).to_pos2()
         };
 
         let latest_pos = ui
             .ctx()
             .input(|input| input.pointer.latest_pos())
             .map(widget_to_hex);
-        let hover_hex = latest_pos.map(HexPos::from_center);
+        let hover_hex = latest_pos
+            .map(HexPos::from_center)
+            .filter(|&pos| self.grid.has_hex(pos));
 
-        for pos in HexPos::range(-3, -3, 3, 3) {
+        for pos in self.grid.range() {
             painter.add(egui::Shape::convex_polygon(
                 HexCorner::all()
                     .into_iter()
