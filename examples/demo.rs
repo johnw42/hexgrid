@@ -24,6 +24,11 @@ struct MyEguiApp {
     grid: HexGrid<(), (), ()>,
 }
 
+const INIT_LEFT: HexCoord = 0;
+const INIT_BOTTOM: HexCoord = 0;
+const INIT_RIGHT: HexCoord = 3;
+const INIT_TOP: HexCoord = 3;
+
 impl MyEguiApp {
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_global_style.
@@ -31,11 +36,11 @@ impl MyEguiApp {
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
         // for e.g. egui::PaintCallback.
         Self {
-            left: 3,
-            bottom: 3,
-            right: 3,
-            top: 3,
-            grid: HexGrid::new(-3, -3, 3, 3),
+            left: INIT_LEFT,
+            bottom: INIT_BOTTOM,
+            right: INIT_RIGHT,
+            top: INIT_TOP,
+            grid: HexGrid::new(-INIT_LEFT, -INIT_BOTTOM, INIT_RIGHT, INIT_TOP),
         }
     }
 }
@@ -57,6 +62,11 @@ impl eframe::App for MyEguiApp {
                 ui.add(egui::Slider::new(&mut self.top, 0..=10));
                 ui.end_row();
             });
+            ui.label(format!(
+                "Grid size: {} x {}",
+                self.grid.width(),
+                self.grid.height()
+            ));
 
             // if ui.button("Regenerate").clicked() {
             //     self.grid = HexGrid::new(-self.left, -self.bottom, self.right, self.top);
@@ -111,7 +121,7 @@ impl<'g> egui::Widget for HexView<'g> {
             .map(HexPos::from_center)
             .filter(|&pos| self.grid.has_hex(pos));
 
-        for pos in self.grid.range() {
+        for (i, pos) in self.grid.range().enumerate() {
             painter.add(egui::Shape::convex_polygon(
                 HexCorner::ALL
                     .into_iter()
@@ -119,6 +129,8 @@ impl<'g> egui::Widget for HexView<'g> {
                     .collect(),
                 if hover_hex == Some(pos) {
                     egui::Color32::RED
+                } else if pos == HexPos::new(0, 0) {
+                    egui::Color32::BLUE
                 } else {
                     egui::Color32::BLACK
                 },
@@ -128,7 +140,7 @@ impl<'g> egui::Widget for HexView<'g> {
             painter.text(
                 hex_to_widget(pos.center_pos()),
                 egui::Align2::CENTER_CENTER,
-                format!("{}", pos),
+                format!("{}({}): {}", i, self.grid.index(pos), pos),
                 egui::TextStyle::Body.resolve(ui.style()),
                 egui::Color32::WHITE,
             );
