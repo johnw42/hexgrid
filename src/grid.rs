@@ -9,9 +9,9 @@ use std::{
 pub struct HexGrid<H, E, C> {
     hexes: Vec<Hex<H, E, C>>,
     left: HexCoord,
-    top: HexCoord,
-    right: HexCoord,
     bottom: HexCoord,
+    right: HexCoord,
+    top: HexCoord,
 }
 
 struct Hex<H, E, C> {
@@ -21,23 +21,23 @@ struct Hex<H, E, C> {
 }
 
 impl<H, E, C> HexGrid<H, E, C> {
-    pub fn new(left: HexCoord, top: HexCoord, right: HexCoord, bottom: HexCoord) -> Self {
+    pub fn new(left: HexCoord, bottom: HexCoord, right: HexCoord, top: HexCoord) -> Self {
         assert!(
             left <= right,
             "Left coordinate must be less than or equal to right coordinate"
         );
         assert!(
-            top <= bottom,
-            "Top coordinate must be less than or equal to bottom coordinate"
+            bottom <= top,
+            "Bottom coordinate must be less than or equal to top coordinate"
         );
 
         let hexes = Vec::new();
         HexGrid {
             hexes,
             left,
-            top,
-            right,
             bottom,
+            right,
+            top,
         }
     }
 
@@ -62,18 +62,18 @@ impl<H, E, C> HexGrid<H, E, C> {
     }
 
     pub fn height(&self) -> HexCoord {
-        self.bottom - self.top + 1
+        self.top - self.bottom + 1
     }
 
     pub fn has_hex(&self, pos: HexPos) -> bool {
         pos.u() >= self.left
-            && pos.v() >= self.top
+            && pos.v() <= self.top
             && pos.u() <= self.right
-            && pos.v() <= self.bottom
+            && pos.v() >= self.bottom
     }
 
     pub fn range(&self) -> impl Iterator<Item = HexPos> {
-        HexPos::range(self.left, self.top, self.right, self.bottom)
+        HexPos::range(self.left, self.bottom, self.right, self.top)
     }
 
     pub fn hex(&self, pos: HexPos) -> &H {

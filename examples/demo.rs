@@ -32,9 +32,9 @@ impl MyEguiApp {
         // for e.g. egui::PaintCallback.
         Self {
             left: 3,
-            top: 3,
-            right: 3,
             bottom: 3,
+            right: 3,
+            top: 3,
             grid: HexGrid::new(-3, -3, 3, 3),
         }
     }
@@ -47,26 +47,26 @@ impl eframe::App for MyEguiApp {
                 ui.label("Left");
                 ui.add(egui::Slider::new(&mut self.left, 0..=10));
                 ui.end_row();
-                ui.label("Top");
-                ui.add(egui::Slider::new(&mut self.top, 0..=10));
+                ui.label("Bottom");
+                ui.add(egui::Slider::new(&mut self.bottom, 0..=10));
                 ui.end_row();
                 ui.label("Right");
                 ui.add(egui::Slider::new(&mut self.right, 0..=10));
                 ui.end_row();
-                ui.label("Bottom");
-                ui.add(egui::Slider::new(&mut self.bottom, 0..=10));
+                ui.label("Top");
+                ui.add(egui::Slider::new(&mut self.top, 0..=10));
                 ui.end_row();
             });
 
             // if ui.button("Regenerate").clicked() {
-            //     self.grid = HexGrid::new(-self.left, -self.top, self.right, self.bottom);
+            //     self.grid = HexGrid::new(-self.left, -self.bottom, self.right, self.top);
             // }
-            if self.top != -self.grid.top()
-                || self.left != -self.grid.left()
-                || self.right != self.grid.right()
+            if self.left != -self.grid.left()
                 || self.bottom != self.grid.bottom()
+                || self.right != self.grid.right()
+                || self.top != -self.grid.top()
             {
-                self.grid = HexGrid::new(-self.left, -self.top, self.right, self.bottom);
+                self.grid = HexGrid::new(-self.left, -self.bottom, self.right, self.top);
             }
 
             ui.separator();

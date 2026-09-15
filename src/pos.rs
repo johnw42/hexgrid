@@ -35,28 +35,30 @@ impl Display for HexPos {
 }
 
 pub struct HexPosRange {
-    current: HexPos,
+    u: HexCoord,
+    v: HexCoord,
     left: HexCoord,
     right: HexCoord,
-    bottom: HexCoord,
+    top: HexCoord,
 }
 
 impl Iterator for HexPosRange {
     type Item = HexPos;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current.1 > self.bottom {
+        if self.v > self.top {
             return None;
         }
-        let result = self.current;
-        self.current.0 += 1;
-        if self.current.0 + 1 > self.right {
-            self.current.0 = self.left;
-            self.current.1 += 1;
+        if (self.u + self.v) % 2 != 0 {
+            self.u += 1;
         }
-        if (self.current.0 + self.current.1) % 2 != 0 {
-            self.current.0 += 1;
+        let result = HexPos::new(self.u, self.v);
+        self.u += 1;
+        if self.u + 1 > self.right {
+            self.u = self.left;
+            self.v += 1;
         }
+
         Some(result)
     }
 }
@@ -75,12 +77,13 @@ impl HexPos {
         self.1
     }
 
-    pub fn range(left: HexCoord, top: HexCoord, right: HexCoord, bottom: HexCoord) -> HexPosRange {
+    pub fn range(left: HexCoord, bottom: HexCoord, right: HexCoord, top: HexCoord) -> HexPosRange {
         HexPosRange {
-            current: HexPos::new(left, top),
+            u: left,
+            v: bottom,
             left,
             right,
-            bottom,
+            top,
         }
     }
 
