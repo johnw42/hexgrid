@@ -6,10 +6,9 @@
 //
 // 0,0   2,0   4,0
 
+use crate::{Cartesian, Distance, HexCoord, corner::HexCorner, edge::HexEdge};
 use std::f32::consts::{FRAC_PI_3, FRAC_PI_6};
 use std::fmt::Display;
-
-use crate::{Cartesian, Distance, HexCoord, corner::HexCorner, edge::HexEdge};
 
 pub struct NearestCorner {
     pub corner: HexCorner,
@@ -138,34 +137,8 @@ impl HexPos {
         (cx + angle.cos(), cy + angle.sin())
     }
 
-    // pub fn shift(&self, direction: HexPoint) -> Self {
-    //     self.shift_by(1, direction)
-    // }
-
-    // pub fn shift_by(&self, distance: i32, direction: HexPoint) -> Self {
-    //     let HexPos(x, y) = *self;
-    //     match direction {
-    //         HexPoint::Right => HexPos(x + 2 * distance, y),
-    //         HexPoint::UpRight => HexPos(x + distance, y + distance),
-    //         HexPoint::UpLeft => HexPos(x - distance, y + distance),
-    //         HexPoint::Left => HexPos(x - 2 * distance, y),
-    //         HexPoint::DownLeft => HexPos(x - distance, y - distance),
-    //         HexPoint::DownRight => HexPos(x + distance, y - distance),
-    //     }
-    // }
-
-    // pub fn adjacent(&self) -> [HexPos; 6] {
-    //     [
-    //         self.shift(HexPoint::Right),
-    //         self.shift(HexPoint::UpRight),
-    //         self.shift(HexPoint::UpLeft),
-    //         self.shift(HexPoint::Left),
-    //         self.shift(HexPoint::DownLeft),
-    //         self.shift(HexPoint::DownRight),
-    //     ]
-    // }
-
-    pub fn adjacent(self, edge: HexEdge) -> Self {
+    /// Gets the neighboring hex in the given direction.
+    pub fn neighbor(self, edge: HexEdge) -> Self {
         let HexPos(x, y) = self;
         match edge {
             HexEdge::TopRight => HexPos(x + 1, y + 1),
@@ -177,14 +150,51 @@ impl HexPos {
         }
     }
 
+    /// Returns true iff the given position is a neighbor of this position.
+    pub fn is_neighbor(self, other: HexPos) -> bool {
+        self.neighbor_edge(other).is_some()
+    }
+
+    /// Gets the edge of this position that is shared by a neighboring position,
+    /// if any.  Returns None if the other position is not a neighbor.
+    pub fn neighbor_edge(self, other: Self) -> Option<HexEdge> {
+        let HexPos(x1, y1) = self;
+        let HexPos(x2, y2) = other;
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        match (dx, dy) {
+            (1, 1) => Some(HexEdge::TopRight),
+            (0, 2) => Some(HexEdge::Top),
+            (-1, 1) => Some(HexEdge::TopLeft),
+            (-1, -1) => Some(HexEdge::BottomLeft),
+            (0, -2) => Some(HexEdge::Bottom),
+            (1, -1) => Some(HexEdge::BottomRight),
+            _ => None,
+        }
+    }
+
+    pub fn neighbors_at_corner(self, corner: HexCorner) -> [(Self, HexCorner); 2] {
+        let mut result = [(self, corner); 2];
+        let mut num_found = 0;
+        for edge in HexEdge::ALL {
+            if edge.ends()[0] == corner {
+                let neighbor = self.neighbor(edge);
+                let neighbor_corner = edge.opposite().ends()[0];
+                result[num_found] = (neighbor, neighbor_corner);
+                num_found += 1;
+            }
+        }
+        result
+    }
+
     pub fn nearest_edge(self, point: Cartesian) -> NearestEdge {
         let (cx, cy) = self.center_pos();
         let (px, py) = point;
         let dx = point.0 - cx;
         let dy = point.1 - cy;
         let angle = dy.atan2(dx);
-        let index = ((angle + FRAC_PI_6) / FRAC_PI_3).round() as i32;
-        let edge = HexEdge::all()[(index - 1).rem_euclid(6) as usize];
+        let steps = ((angle + FRAC_PI_6) / FRAC_PI_3).round() as i32;
+        let edge = HexEdge::TopRight.rotate(steps - 1);
         let corner = edge.ends()[0];
         let (cpx, cpy) = self.corner_pos(corner);
         let slope = match edge {
@@ -203,8 +213,8 @@ impl HexPos {
         let dx = px - cx;
         let dy = py - cy;
         let angle = dy.atan2(dx);
-        let index = ((angle + FRAC_PI_6 / 2.0) / FRAC_PI_3).round() as i32;
-        let corner = HexCorner::all()[index.rem_euclid(6) as usize];
+        let steps = ((angle + FRAC_PI_6 / 2.0) / FRAC_PI_3).round() as i32;
+        let corner = HexCorner::Right.rotate(steps);
         let (cpx, cpy) = self.corner_pos(corner);
         let distance = (cpx - px).hypot(cpy - py);
         NearestCorner {

@@ -113,7 +113,7 @@ impl<'g> egui::Widget for HexView<'g> {
 
         for pos in self.grid.range() {
             painter.add(egui::Shape::convex_polygon(
-                HexCorner::all()
+                HexCorner::ALL
                     .into_iter()
                     .map(|corner| hex_to_widget(pos.corner_pos(corner)))
                     .collect(),

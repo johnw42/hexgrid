@@ -1,24 +1,27 @@
 #![allow(unused)] // TODO
 
 use crate::{HexCoord, corner::HexCorner, edge::HexEdge, pos::HexPos};
+use std::{
+    cell::{Ref, RefCell, RefMut},
+    sync::Arc,
+};
 
 pub struct HexGrid<H, E, C> {
-    hexes: Vec<H>,
-    edges: Vec<E>,
-    corners: Vec<C>,
+    hexes: Vec<Hex<H, E, C>>,
     left: HexCoord,
     top: HexCoord,
     right: HexCoord,
     bottom: HexCoord,
 }
 
+struct Hex<H, E, C> {
+    data: H,
+    edges: [Option<E>; 6],
+    corners: [Option<C>; 6],
+}
+
 impl<H, E, C> HexGrid<H, E, C> {
-    pub fn new(left: HexCoord, top: HexCoord, right: HexCoord, bottom: HexCoord) -> Self
-    where
-        H: Default,
-        E: Default,
-        C: Default,
-    {
+    pub fn new(left: HexCoord, top: HexCoord, right: HexCoord, bottom: HexCoord) -> Self {
         assert!(
             left <= right,
             "Left coordinate must be less than or equal to right coordinate"
@@ -29,12 +32,8 @@ impl<H, E, C> HexGrid<H, E, C> {
         );
 
         let hexes = Vec::new();
-        let edges = Vec::new();
-        let corners = Vec::new();
         HexGrid {
             hexes,
-            edges,
-            corners,
             left,
             top,
             right,
@@ -78,21 +77,11 @@ impl<H, E, C> HexGrid<H, E, C> {
     }
 
     pub fn hex(&self, pos: HexPos) -> &H {
-        assert!(
-            self.has_hex(pos),
-            "Hex at position {:?} does not exist",
-            pos
-        );
-        todo!()
+        &self.get(pos).data
     }
 
     pub fn hex_mut(&mut self, pos: HexPos) -> &mut H {
-        assert!(
-            self.has_hex(pos),
-            "Hex at position {:?} does not exist",
-            pos
-        );
-        todo!()
+        &mut self.get_mut(pos).data
     }
 
     pub fn edge(&self, pos: HexPos, edge: HexEdge) -> &E {
@@ -103,7 +92,6 @@ impl<H, E, C> HexGrid<H, E, C> {
         );
         todo!()
     }
-
     pub fn edge_mut(&mut self, pos: HexPos, edge: HexEdge) -> &mut E {
         assert!(
             self.has_hex(pos),
@@ -114,6 +102,33 @@ impl<H, E, C> HexGrid<H, E, C> {
     }
 
     pub fn corner(&self, pos: HexPos, corner: HexCorner) -> &C {
+        assert!(
+            self.has_hex(pos),
+            "Hex at position {:?} does not exist",
+            pos
+        );
+        todo!()
+    }
+
+    pub fn corner_mut(&mut self, pos: HexPos, corner: HexCorner) -> &mut C {
+        assert!(
+            self.has_hex(pos),
+            "Hex at position {:?} does not exist",
+            pos
+        );
+        todo!()
+    }
+
+    fn get(&self, pos: HexPos) -> &Hex<H, E, C> {
+        assert!(
+            self.has_hex(pos),
+            "Hex at position {:?} does not exist",
+            pos
+        );
+        todo!()
+    }
+
+    fn get_mut(&mut self, pos: HexPos) -> &mut Hex<H, E, C> {
         assert!(
             self.has_hex(pos),
             "Hex at position {:?} does not exist",
