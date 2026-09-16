@@ -19,7 +19,7 @@ fn main() {
 struct MyEguiApp {
     width: HexCoord,
     height: HexCoord,
-    grid: HexGrid<(), (), ()>,
+    grid: HexGrid<bool, (), ()>,
 }
 
 const INIT_WIDTH: HexCoord = 3;
@@ -34,7 +34,7 @@ impl MyEguiApp {
         Self {
             width: INIT_WIDTH,
             height: INIT_HEIGHT,
-            grid: HexGrid::new(INIT_WIDTH, INIT_HEIGHT),
+            grid: HexGrid::new_with_defaults(INIT_WIDTH, INIT_HEIGHT),
         }
     }
 }
@@ -60,7 +60,7 @@ impl eframe::App for MyEguiApp {
             //     self.grid = HexGrid::new(-self.left, -self.bottom, self.right, self.top);
             // }
             if self.width != self.grid.width() || self.height != self.grid.height() {
-                self.grid = HexGrid::new(self.width, self.height);
+                self.grid = HexGrid::new_with_defaults(self.width, self.height);
             }
 
             ui.separator();
@@ -74,7 +74,7 @@ impl eframe::App for MyEguiApp {
 }
 struct HexView<'g> {
     pub scale: f32,
-    pub grid: &'g mut HexGrid<(), (), ()>,
+    pub grid: &'g mut HexGrid<bool, (), ()>,
 }
 
 fn reflect_vertical((x, y): Cartesian) -> Cartesian {
@@ -83,7 +83,7 @@ fn reflect_vertical((x, y): Cartesian) -> Cartesian {
 
 impl<'g> egui::Widget for HexView<'g> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::hover());
+        let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::click());
         let painter = ui.painter_at(rect);
 
         let HexView { scale, .. } = self;
@@ -117,7 +117,7 @@ impl<'g> egui::Widget for HexView<'g> {
                     .collect(),
                 if hover_hex == Some(pos) {
                     egui::Color32::RED
-                } else if pos == HexPos::new(0, 0) {
+                } else if *self.grid.hex(pos) {
                     egui::Color32::BLUE
                 } else {
                     egui::Color32::BLACK
@@ -128,13 +128,18 @@ impl<'g> egui::Widget for HexView<'g> {
             painter.text(
                 hex_to_widget(pos.center_pos()),
                 egui::Align2::CENTER_CENTER,
-                format!("{}({}): {}", i, "", pos),
+                format!("{}: {}", i, pos),
                 egui::TextStyle::Body.resolve(ui.style()),
                 egui::Color32::WHITE,
             );
         }
 
         if let Some(hover_hex) = hover_hex {
+            if response.clicked() {
+                println!("Clicked hex: {}", hover_hex);
+                *self.grid.hex_mut(hover_hex) = !*self.grid.hex(hover_hex);
+            }
+
             let pos = latest_pos.unwrap();
 
             let NearestEdge { distance, edge } = hover_hex.nearest_edge(pos);
