@@ -5,6 +5,7 @@ use hexgrid::{
     corner::HexCorner,
     grid::HexGrid,
     pos::{HexPos, NearestCorner, NearestEdge},
+    validate_grid_size,
 };
 
 fn main() {
@@ -12,20 +13,22 @@ fn main() {
     let _ = eframe::run_native(
         "My egui App",
         native_options,
-        Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc)))),
+        Box::new(|cc| Ok(Box::new(DemoApp::new(cc)))),
     );
 }
 
-struct MyEguiApp {
+type DemoGrid = HexGrid<bool, bool, ()>;
+
+struct DemoApp {
     width: HexCoord,
     height: HexCoord,
-    grid: HexGrid<bool, (), ()>,
+    grid: Option<DemoGrid>,
 }
 
-const INIT_WIDTH: HexCoord = 3;
-const INIT_HEIGHT: HexCoord = 3;
+const INIT_WIDTH: HexCoord = 5;
+const INIT_HEIGHT: HexCoord = 5;
 
-impl MyEguiApp {
+impl DemoApp {
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_global_style.
         // Restore app state using cc.storage (requires the "persistence" feature).
@@ -34,12 +37,12 @@ impl MyEguiApp {
         Self {
             width: INIT_WIDTH,
             height: INIT_HEIGHT,
-            grid: HexGrid::new_with_defaults(INIT_WIDTH, INIT_HEIGHT),
+            grid: Some(DemoGrid::new_with_defaults(INIT_WIDTH, INIT_HEIGHT)),
         }
     }
 }
 
-impl eframe::App for MyEguiApp {
+impl eframe::App for DemoApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ui, |ui| {
             egui::Grid::new("my_grid").show(ui, |ui| {
@@ -50,31 +53,31 @@ impl eframe::App for MyEguiApp {
                 ui.add(egui::Slider::new(&mut self.height, 0..=10));
                 ui.end_row();
             });
-            ui.label(format!(
-                "Grid size: {} x {}",
-                self.grid.width(),
-                self.grid.height()
-            ));
+            ui.label(format!("Grid size: {} x {}", self.width, self.height));
 
-            // if ui.button("Regenerate").clicked() {
-            //     self.grid = HexGrid::new(-self.left, -self.bottom, self.right, self.top);
-            // }
-            if self.width != self.grid.width() || self.height != self.grid.height() {
-                self.grid = HexGrid::new_with_defaults(self.width, self.height);
+            if self.grid.is_none()
+                || self
+                    .grid
+                    .as_ref()
+                    .is_none_or(|g| g.width() != self.width || g.height() != self.height)
+            {
+                self.grid = validate_grid_size(self.width, self.height)
+                    .ok()
+                    .map(|_| DemoGrid::new_with_defaults(self.width, self.height))
             }
 
-            ui.separator();
-
-            ui.add(HexView {
-                scale: 50.0,
-                grid: &mut self.grid,
-            });
+            if let Some(grid) = &mut self.grid {
+                ui.separator();
+                ui.add(HexView { scale: 50.0, grid });
+            } else {
+                ui.label("Invalid grid size");
+            }
         });
     }
 }
 struct HexView<'g> {
     pub scale: f32,
-    pub grid: &'g mut HexGrid<bool, (), ()>,
+    pub grid: &'g mut DemoGrid,
 }
 
 fn reflect_vertical((x, y): Cartesian) -> Cartesian {

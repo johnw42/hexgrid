@@ -1,6 +1,6 @@
 #![allow(unused)] // TODO
 
-use crate::{HexCoord, corner::HexCorner, edge::HexEdge, pos::HexPos};
+use crate::{HexCoord, corner::HexCorner, edge::HexEdge, pos::HexPos, validate_grid_size};
 use std::{
     cell::{Ref, RefCell, RefMut},
     collections::HashMap,
@@ -40,6 +40,8 @@ impl<H, E, C> HexGrid<H, E, C> {
         E: Default,
         C: Default,
     {
+        assert_eq!(validate_grid_size(width, height), Ok(()));
+
         let even_row_size = 1 + (width - 1) / 2;
         let odd_row_size = width / 2;
 
@@ -58,13 +60,7 @@ impl<H, E, C> HexGrid<H, E, C> {
         };
 
         if width > 0 && height > 0 {
-            // let last_hex_pos = if (width + height) % 2 == 0 {
-            //     HexPos::new(width - 1, height - 1)
-            // } else {
-            //     HexPos::new(width - 2, height - 1)
-            // };
-            // let last_index = grid.index(last_hex_pos);
-            // grid.hexes.reserve(last_index + 1);
+            grid.hexes.reserve_exact(grid.range().count());
             for pos in grid.range() {
                 let hex = Hex {
                     data: h(pos),
@@ -83,7 +79,9 @@ impl<H, E, C> HexGrid<H, E, C> {
             }
         }
 
-        //debug_assert_eq!(grid.hexes.len(), grid.hexes.capacity());
+        if size_of::<H>() + size_of::<E>() + size_of::<C>() > 0 {
+            debug_assert_eq!(grid.hexes.len(), grid.hexes.capacity());
+        }
 
         grid
     }
@@ -129,12 +127,22 @@ impl<H, E, C> HexGrid<H, E, C> {
     }
 
     pub fn edge(&self, pos: HexPos, edge: HexEdge) -> &E {
-        assert!(
-            self.has_hex(pos),
-            "Hex at position {:?} does not exist",
-            pos
-        );
-        todo!()
+        match edge {
+            HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft => {
+                &self.hexes[self.index(pos)].edges[edge as usize]
+            }
+            _ => {
+                let other = pos.neighbor(edge);
+                if self.has_hex(other) {
+                    self.edge(other, edge.opposite())
+                } else {
+                    match edge {
+                        HexEdge::Bottom => &self.bottom_edges[pos.u() as usize],
+                        _ => unreachable!(),
+                    }
+                }
+            }
+        }
     }
     pub fn edge_mut(&mut self, pos: HexPos, edge: HexEdge) -> &mut E {
         assert!(
@@ -183,16 +191,18 @@ impl<H, E, C> HexGrid<H, E, C> {
 fn test_index() {
     for width in 0..=9 {
         for height in 0..=9 {
-            let grid = HexGrid::<()>::new_with_defaults(width, height);
-            for (i, pos) in grid.range().enumerate() {
-                assert_eq!(
-                    grid.index(pos),
-                    i,
-                    "size: {:?}, pos: {:?}, i: {}",
-                    (width, height),
-                    pos,
-                    i
-                );
+            if validate_grid_size(width, height).is_ok() {
+                let grid = HexGrid::<i32>::new_with_defaults(width, height);
+                for (i, pos) in grid.range().enumerate() {
+                    assert_eq!(
+                        grid.index(pos),
+                        i,
+                        "size: {:?}, pos: {:?}, i: {}",
+                        (width, height),
+                        pos,
+                        i
+                    );
+                }
             }
         }
     }
