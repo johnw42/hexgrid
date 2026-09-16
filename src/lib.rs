@@ -6,3 +6,11 @@ pub mod pos;
 pub type HexCoord = i32;
 pub type Distance = f32;
 pub type Cartesian = (Distance, Distance);
+
+pub const HEX_WIDTH: Distance = 1.0;
+pub const HEX_HEIGHT: Distance = HEX_WIDTH * SQRT_3 / 2.0;
+pub const HEX_VERTICAL_SPACING: Distance = HEX_HEIGHT;
+pub const HEX_HORIZONTAL_SPACING: Distance = HEX_WIDTH * 1.5;
+
+#[allow(clippy::excessive_precision)]
+const SQRT_3: Distance = 1.7320508075688772;

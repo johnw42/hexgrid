@@ -15,13 +15,8 @@ pub struct HexGrid<H, E, C> {
     bottom_right_corners: Vec<C>,
     bottom_left_corners: Vec<C>,
     left_corners: Vec<C>,
-    left: HexCoord,
-    bottom: HexCoord,
-    right: HexCoord,
-    top: HexCoord,
-    origin_index: HexCoord,
-    hexes_left_of_origin: HexCoord,
-    hexes_right_of_origin: HexCoord,
+    width: HexCoord,
+    height: HexCoord,
     even_row_size: HexCoord,
     odd_row_size: HexCoord,
 }
@@ -33,32 +28,18 @@ struct Hex<H, E, C> {
 }
 
 impl<H, E, C> HexGrid<H, E, C> {
-    pub fn new(left: HexCoord, bottom: HexCoord, right: HexCoord, top: HexCoord) -> Self
+    pub fn new(width: HexCoord, height: HexCoord) -> Self
     where
         H: Default,
         E: Default,
         C: Default,
     {
-        assert!(left <= 0, "Left coordinate must be less than or equal to 0");
-        assert!(
-            bottom <= 0,
-            "Bottom coordinate must be less than or equal to 0"
-        );
-        assert!(
-            right >= 0,
-            "Right coordinate must be greater than or equal to 0"
-        );
-        assert!(
-            top >= 0,
-            "Top coordinate must be greater than or equal to 0"
-        );
-
-        let even_row_size = 1 + (-left / 2) + right / 2;
-        let odd_row_size = (-left + 1) / 2 + (right + 1) / 2;
-        let hexes_left_of_origin = -left / 2;
-        let hexes_right_of_origin = right / 2;
-        let even_rows_below_origin = -bottom / 2;
-        let odd_rows_below_origin = (-bottom + 1) / 2;
+        let even_row_size = 1 + (width - 1) / 2;
+        let odd_row_size = width / 2;
+        let hexes_left_of_origin = width / 2;
+        let hexes_right_of_origin = width - hexes_left_of_origin;
+        let even_rows_below_origin = height / 2;
+        let odd_rows_below_origin = height - even_rows_below_origin;
         let origin_index = hexes_left_of_origin
             + even_row_size * even_rows_below_origin
             + odd_row_size * odd_rows_below_origin;
@@ -81,51 +62,27 @@ impl<H, E, C> HexGrid<H, E, C> {
             bottom_right_corners: Vec::new(),
             bottom_left_corners: Vec::new(),
             left_corners: Vec::new(),
-            left,
-            bottom,
-            right,
-            top,
-            origin_index,
+            width,
+            height,
             even_row_size,
             odd_row_size,
-            hexes_left_of_origin,
-            hexes_right_of_origin,
         }
     }
 
-    pub fn top(&self) -> HexCoord {
-        self.top
-    }
-
-    pub fn left(&self) -> HexCoord {
-        self.left
-    }
-
-    pub fn bottom(&self) -> HexCoord {
-        self.bottom
-    }
-
-    pub fn right(&self) -> HexCoord {
-        self.right
-    }
-
     pub fn width(&self) -> HexCoord {
-        self.right - self.left + 1
+        self.width
     }
 
     pub fn height(&self) -> HexCoord {
-        self.top - self.bottom + 1
+        self.height
     }
 
     pub fn has_hex(&self, pos: HexPos) -> bool {
-        pos.u() >= self.left
-            && pos.v() <= self.top
-            && pos.u() <= self.right
-            && pos.v() >= self.bottom
+        pos.u() >= 0 && pos.v() >= 0 && pos.v() < self.height && pos.u() < self.width
     }
 
     pub fn range(&self) -> impl Iterator<Item = HexPos> {
-        HexPos::range(self.left, self.bottom, self.right, self.top)
+        HexPos::range(self.width, self.height)
     }
 
     pub fn hex(&self, pos: HexPos) -> &H {
@@ -189,57 +146,57 @@ impl<H, E, C> HexGrid<H, E, C> {
         todo!()
     }
 
-    pub fn index(&self, pos: HexPos) -> usize {
-        // assert!(
-        //     self.has_hex(pos),
-        //     "Hex at position {:?} does not exist",
-        //     pos
-        // );
-        let u = pos.u();
-        let v = pos.v();
-        let v_sign = if v >= 0 { 1 } else { -1 };
-        let index = (self.origin_index
-            + u / 2
-            + self.even_row_size * (v / 2)
-            + self.odd_row_size * ((v + v_sign) / 2)) as usize;
-        if u == 0 && v == 0 {
-            assert_eq!(index, self.origin_index as usize);
-        }
-        // if v % 2 == 0 {
-        //     assert_eq!(
-        //         self.range().nth(index),
-        //         Some(pos),
-        //         "pos: {:?}, index: {}, range().nth(index): {:?}",
-        //         pos,
-        //         index,
-        //         self.range().nth(index)
-        //     );
-        // }
-        index
-    }
+    // pub fn index(&self, pos: HexPos) -> usize {
+    //     // assert!(
+    //     //     self.has_hex(pos),
+    //     //     "Hex at position {:?} does not exist",
+    //     //     pos
+    //     // );
+    //     let u = pos.u();
+    //     let v = pos.v();
+    //     let v_sign = if v >= 0 { 1 } else { -1 };
+    //     let index = (self.origin_index
+    //         + u / 2
+    //         + self.even_row_size * (v / 2)
+    //         + self.odd_row_size * ((v + v_sign) / 2)) as usize;
+    //     if u == 0 && v == 0 {
+    //         assert_eq!(index, self.origin_index as usize);
+    //     }
+    //     // if v % 2 == 0 {
+    //     //     assert_eq!(
+    //     //         self.range().nth(index),
+    //     //         Some(pos),
+    //     //         "pos: {:?}, index: {}, range().nth(index): {:?}",
+    //     //         pos,
+    //     //         index,
+    //     //         self.range().nth(index)
+    //     //     );
+    //     // }
+    //     index
+    // }
 }
 
-#[test]
-fn test_index() {
-    for left in -3..=0 {
-        for bottom in -3..=0 {
-            for right in 0..=3 {
-                for top in 0..=3 {
-                    let grid = HexGrid::<(), (), ()>::new(left, bottom, right, top);
-                    for (i, pos) in grid.range().enumerate() {
-                        if pos.v() % 2 == 0 {
-                            assert_eq!(
-                                grid.index(pos),
-                                i,
-                                "grid: {:?}, pos: {:?}, i: {}",
-                                (left, bottom, right, top),
-                                pos,
-                                i
-                            );
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
+// #[test]
+// fn test_index() {
+//     for left in -3..=0 {
+//         for bottom in -3..=0 {
+//             for right in 0..=3 {
+//                 for top in 0..=3 {
+//                     let grid = HexGrid::<(), (), ()>::new(left, bottom, right, top);
+//                     for (i, pos) in grid.range().enumerate() {
+//                         if pos.v() % 2 == 0 {
+//                             assert_eq!(
+//                                 grid.index(pos),
+//                                 i,
+//                                 "grid: {:?}, pos: {:?}, i: {}",
+//                                 (left, bottom, right, top),
+//                                 pos,
+//                                 i
+//                             );
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// }

@@ -1,7 +1,7 @@
 use eframe::egui;
 use egui::Pos2;
 use hexgrid::{
-    Cartesian, HexCoord,
+    Cartesian, Distance, HEX_HEIGHT, HEX_WIDTH, HexCoord,
     corner::HexCorner,
     grid::HexGrid,
     pos::{HexPos, NearestCorner, NearestEdge},
@@ -17,17 +17,13 @@ fn main() {
 }
 
 struct MyEguiApp {
-    left: HexCoord,
-    top: HexCoord,
-    right: HexCoord,
-    bottom: HexCoord,
+    width: HexCoord,
+    height: HexCoord,
     grid: HexGrid<(), (), ()>,
 }
 
-const INIT_LEFT: HexCoord = 0;
-const INIT_BOTTOM: HexCoord = 0;
-const INIT_RIGHT: HexCoord = 3;
-const INIT_TOP: HexCoord = 3;
+const INIT_WIDTH: HexCoord = 3;
+const INIT_HEIGHT: HexCoord = 3;
 
 impl MyEguiApp {
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
@@ -36,11 +32,9 @@ impl MyEguiApp {
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
         // for e.g. egui::PaintCallback.
         Self {
-            left: INIT_LEFT,
-            bottom: INIT_BOTTOM,
-            right: INIT_RIGHT,
-            top: INIT_TOP,
-            grid: HexGrid::new(-INIT_LEFT, -INIT_BOTTOM, INIT_RIGHT, INIT_TOP),
+            width: INIT_WIDTH,
+            height: INIT_HEIGHT,
+            grid: HexGrid::new(INIT_WIDTH, INIT_HEIGHT),
         }
     }
 }
@@ -49,17 +43,11 @@ impl eframe::App for MyEguiApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ui, |ui| {
             egui::Grid::new("my_grid").show(ui, |ui| {
-                ui.label("Left");
-                ui.add(egui::Slider::new(&mut self.left, 0..=10));
+                ui.label("Width");
+                ui.add(egui::Slider::new(&mut self.width, 0..=10));
                 ui.end_row();
-                ui.label("Bottom");
-                ui.add(egui::Slider::new(&mut self.bottom, 0..=10));
-                ui.end_row();
-                ui.label("Right");
-                ui.add(egui::Slider::new(&mut self.right, 0..=10));
-                ui.end_row();
-                ui.label("Top");
-                ui.add(egui::Slider::new(&mut self.top, 0..=10));
+                ui.label("Height");
+                ui.add(egui::Slider::new(&mut self.height, 0..=10));
                 ui.end_row();
             });
             ui.label(format!(
@@ -71,12 +59,8 @@ impl eframe::App for MyEguiApp {
             // if ui.button("Regenerate").clicked() {
             //     self.grid = HexGrid::new(-self.left, -self.bottom, self.right, self.top);
             // }
-            if self.left != -self.grid.left()
-                || self.bottom != self.grid.bottom()
-                || self.right != self.grid.right()
-                || self.top != -self.grid.top()
-            {
-                self.grid = HexGrid::new(-self.left, -self.bottom, self.right, self.top);
+            if self.width != self.grid.width() || self.height != self.grid.height() {
+                self.grid = HexGrid::new(self.width, self.height);
             }
 
             ui.separator();
@@ -104,7 +88,11 @@ impl<'g> egui::Widget for HexView<'g> {
 
         let HexView { scale, .. } = self;
 
-        let rect_offset = rect.center().to_vec2();
+        let rect_offset = rect.center().to_vec2()
+            - egui::vec2(
+                (self.grid.width() - 1) as Distance * HEX_WIDTH,
+                (1 - self.grid.height()) as Distance * HEX_HEIGHT,
+            ) * (scale / 2.0);
         let widget_to_hex = |pos: Pos2| -> Cartesian {
             let egui::Pos2 { x, y } = (pos - rect_offset) / scale;
             reflect_vertical((x, y))
@@ -140,7 +128,7 @@ impl<'g> egui::Widget for HexView<'g> {
             painter.text(
                 hex_to_widget(pos.center_pos()),
                 egui::Align2::CENTER_CENTER,
-                format!("{}({}): {}", i, self.grid.index(pos), pos),
+                format!("{}({}): {}", i, "", pos),
                 egui::TextStyle::Body.resolve(ui.style()),
                 egui::Color32::WHITE,
             );

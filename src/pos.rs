@@ -34,39 +34,16 @@ impl Display for HexPos {
     }
 }
 
-pub struct HexPosRange {
-    u: HexCoord,
-    v: HexCoord,
-    left: HexCoord,
-    right: HexCoord,
-    top: HexCoord,
-}
-
-impl Iterator for HexPosRange {
-    type Item = HexPos;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.v > self.top {
-            return None;
-        }
-        if (self.u + self.v) % 2 != 0 {
-            self.u += 1;
-        }
-        let result = HexPos::new(self.u, self.v);
-        self.u += 1;
-        if self.u + 1 > self.right {
-            self.u = self.left;
-            self.v += 1;
-        }
-
-        Some(result)
+impl From<HexPos> for (HexCoord, HexCoord) {
+    fn from(pos: HexPos) -> Self {
+        (pos.0, pos.1)
     }
 }
 
 impl HexPos {
-    pub fn new(x: HexCoord, y: HexCoord) -> Self {
-        assert!((x + y) % 2 == 0, "x + y must be even");
-        HexPos(x, y)
+    pub fn new(u: HexCoord, v: HexCoord) -> Self {
+        assert!((u + v) % 2 == 0, "u + v must be even");
+        HexPos(u, v)
     }
 
     pub fn u(self) -> HexCoord {
@@ -77,13 +54,12 @@ impl HexPos {
         self.1
     }
 
-    pub fn range(left: HexCoord, bottom: HexCoord, right: HexCoord, top: HexCoord) -> HexPosRange {
+    pub fn range(width: HexCoord, height: HexCoord) -> HexPosRange {
         HexPosRange {
-            u: left,
-            v: bottom,
-            left,
-            right,
-            top,
+            u: 0,
+            v: 0,
+            width,
+            height,
         }
     }
 
@@ -118,10 +94,10 @@ impl HexPos {
     }
 
     pub fn center_pos(self) -> Cartesian {
-        let HexPos(x, y) = self;
+        let HexPos(u, v) = self;
         let y_scale = (3.0_f32).sqrt() / 2.0;
         let x_scale = 1.5;
-        (x as f32 * x_scale, y as f32 * y_scale)
+        (u as f32 * x_scale, v as f32 * y_scale)
     }
 
     pub fn corners_pos(self) -> [Cartesian; 6] {
@@ -142,14 +118,14 @@ impl HexPos {
 
     /// Gets the neighboring hex in the given direction.
     pub fn neighbor(self, edge: HexEdge) -> Self {
-        let HexPos(x, y) = self;
+        let HexPos(u, v) = self;
         match edge {
-            HexEdge::TopRight => HexPos(x + 1, y + 1),
-            HexEdge::Top => HexPos(x, y + 2),
-            HexEdge::TopLeft => HexPos(x - 1, y + 1),
-            HexEdge::BottomLeft => HexPos(x - 1, y - 1),
-            HexEdge::Bottom => HexPos(x, y - 2),
-            HexEdge::BottomRight => HexPos(x + 1, y - 1),
+            HexEdge::TopRight => HexPos(u + 1, v + 1),
+            HexEdge::Top => HexPos(u, v + 2),
+            HexEdge::TopLeft => HexPos(u - 1, v + 1),
+            HexEdge::BottomLeft => HexPos(u - 1, v - 1),
+            HexEdge::Bottom => HexPos(u, v - 2),
+            HexEdge::BottomRight => HexPos(u + 1, v - 1),
         }
     }
 
@@ -161,11 +137,11 @@ impl HexPos {
     /// Gets the edge of this position that is shared by a neighboring position,
     /// if any.  Returns None if the other position is not a neighbor.
     pub fn neighbor_edge(self, other: Self) -> Option<HexEdge> {
-        let HexPos(x1, y1) = self;
-        let HexPos(x2, y2) = other;
-        let dx = x2 - x1;
-        let dy = y2 - y1;
-        match (dx, dy) {
+        let HexPos(u1, v1) = self;
+        let HexPos(u2, v2) = other;
+        let du = u2 - u1;
+        let dv = v2 - v1;
+        match (du, dv) {
             (1, 1) => Some(HexEdge::TopRight),
             (0, 2) => Some(HexEdge::Top),
             (-1, 1) => Some(HexEdge::TopLeft),
@@ -225,5 +201,35 @@ impl HexPos {
             distance,
             point: (cpx, cpy),
         }
+    }
+}
+
+pub struct HexPosRange {
+    u: HexCoord,
+    v: HexCoord,
+    width: HexCoord,
+    height: HexCoord,
+}
+
+impl Iterator for HexPosRange {
+    type Item = HexPos;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut result = None;
+        while result.is_none() && self.v < self.height {
+            if (self.u + self.v) % 2 != 0 {
+                self.u += 1;
+            }
+            if self.u < self.width {
+                result = Some(HexPos::new(self.u, self.v));
+            }
+            self.u += 1;
+            if self.u > self.width {
+                self.u = 0;
+                self.v += 1;
+            }
+        }
+
+        result
     }
 }
