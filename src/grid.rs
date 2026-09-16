@@ -1,6 +1,12 @@
 #![allow(unused)] // TODO
 
-use crate::{HexCoord, corner::HexCorner, edge::HexEdge, pos::HexPos, validate_grid_size};
+use crate::{
+    HexCoord,
+    corner::{HexCorner, HexCornerIterator},
+    edge::{HexEdge, HexEdgeIterator},
+    pos::{HexPos, HexPosIterator},
+    validate_grid_size,
+};
 use std::{
     cell::{Ref, RefCell, RefMut},
     collections::HashMap,
@@ -9,12 +15,9 @@ use std::{
 
 pub struct HexGrid<H, E = (), C = ()> {
     hexes: Vec<Hex<H, E, C>>,
-    bottom_right_edges: Vec<E>,
-    bottom_edges: Vec<E>,
     bottom_left_edges: Vec<E>,
-    bottom_right_corners: Vec<C>,
-    bottom_left_corners: Vec<C>,
-    left_corners: Vec<C>,
+    bottom_edges: Vec<E>,
+    bottom_right_edges: Vec<E>,
     width: HexCoord,
     height: HexCoord,
     even_row_size: HexCoord,
@@ -47,12 +50,9 @@ impl<H, E, C> HexGrid<H, E, C> {
 
         let mut grid = HexGrid {
             hexes: Vec::new(),
-            bottom_right_edges: Vec::new(),
-            bottom_edges: Vec::new(),
             bottom_left_edges: Vec::new(),
-            bottom_right_corners: Vec::new(),
-            bottom_left_corners: Vec::new(),
-            left_corners: Vec::new(),
+            bottom_edges: Vec::new(),
+            bottom_right_edges: Vec::new(),
             width,
             height,
             even_row_size,
@@ -60,8 +60,8 @@ impl<H, E, C> HexGrid<H, E, C> {
         };
 
         if width > 0 && height > 0 {
-            grid.hexes.reserve_exact(grid.range().count());
-            for pos in grid.range() {
+            grid.hexes.reserve_exact(grid.hex_range().count());
+            for pos in grid.hex_range() {
                 let hex = Hex {
                     data: h(pos),
                     edges: [
@@ -76,6 +76,17 @@ impl<H, E, C> HexGrid<H, E, C> {
                     ],
                 };
                 grid.hexes.push(hex);
+            }
+            //TODO
+            for u in 0..(height / 2 + (width + 1) / 2) {
+                grid.bottom_left_edges
+                    .push(e(HexPos::new(u, u % 2), HexEdge::BottomLeft));
+            }
+            for u in 0..width {
+                grid.bottom_edges
+                    .push(e(HexPos::new(u, u % 2), HexEdge::Bottom));
+                grid.bottom_right_edges
+                    .push(e(HexPos::new(u, u % 2), HexEdge::BottomRight));
             }
         }
 
@@ -110,11 +121,19 @@ impl<H, E, C> HexGrid<H, E, C> {
     }
 
     pub fn has_hex(&self, pos: HexPos) -> bool {
-        pos.u() >= 0 && pos.v() >= 0 && pos.v() < self.height && pos.u() < self.width
+        pos.in_range(self.width, self.height)
     }
 
-    pub fn range(&self) -> impl Iterator<Item = HexPos> + 'static {
-        HexPos::range(self.width, self.height)
+    pub fn hex_range(&self) -> HexPosIterator {
+        HexPosIterator::new(self.width, self.height)
+    }
+
+    pub fn edge_range(&self) -> HexEdgeIterator {
+        HexEdgeIterator::new(self.width, self.height)
+    }
+
+    pub fn corner_range(&self) -> HexCornerIterator {
+        HexCornerIterator::new(self.width, self.height)
     }
 
     pub fn hex(&self, pos: HexPos) -> &H {
@@ -127,30 +146,27 @@ impl<H, E, C> HexGrid<H, E, C> {
     }
 
     pub fn edge(&self, pos: HexPos, edge: HexEdge) -> &E {
+        let (index, edge) = self.edge_index(pos, edge);
         match edge {
             HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft => {
-                &self.hexes[self.index(pos)].edges[edge as usize]
+                &self.hexes[index].edges[edge as usize]
             }
-            _ => {
-                let other = pos.neighbor(edge);
-                if self.has_hex(other) {
-                    self.edge(other, edge.opposite())
-                } else {
-                    match edge {
-                        HexEdge::Bottom => &self.bottom_edges[pos.u() as usize],
-                        _ => unreachable!(),
-                    }
-                }
-            }
+            HexEdge::BottomLeft => &self.bottom_left_edges[index],
+            HexEdge::Bottom => &self.bottom_edges[index],
+            HexEdge::BottomRight => &self.bottom_right_edges[index],
         }
     }
+
     pub fn edge_mut(&mut self, pos: HexPos, edge: HexEdge) -> &mut E {
-        assert!(
-            self.has_hex(pos),
-            "Hex at position {:?} does not exist",
-            pos
-        );
-        todo!()
+        let (index, edge) = self.edge_index(pos, edge);
+        match edge {
+            HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft => {
+                &mut self.hexes[index].edges[edge as usize]
+            }
+            HexEdge::BottomLeft => &mut self.bottom_left_edges[index],
+            HexEdge::Bottom => &mut self.bottom_edges[index],
+            HexEdge::BottomRight => &mut self.bottom_right_edges[index],
+        }
     }
 
     pub fn corner(&self, pos: HexPos, corner: HexCorner) -> &C {
@@ -185,6 +201,22 @@ impl<H, E, C> HexGrid<H, E, C> {
             (u / 2 + self.even_row_size * ((v + 1) / 2) + self.odd_row_size * (v / 2)) as usize
         }
     }
+
+    pub fn edge_index(&self, pos: HexPos, edge: HexEdge) -> (usize, HexEdge) {
+        match edge {
+            HexEdge::BottomLeft if pos.v() == 0 => ((pos.u() / 2 + self.height / 2) as usize, edge),
+            HexEdge::BottomLeft if pos.u() == 0 => ((pos.v() / 2) as usize, edge),
+            HexEdge::Bottom if pos.v() <= 1 => (pos.u() as usize, edge),
+            HexEdge::BottomRight if pos.v() == 0 || (pos.v() == 1 && pos.u() == self.width - 1) => {
+                (pos.u() as usize, edge)
+            }
+            HexEdge::BottomLeft | HexEdge::Bottom | HexEdge::BottomRight => {
+                let neighbor = pos.neighbor(edge);
+                (self.index(neighbor), edge.opposite())
+            }
+            _ => (self.index(pos), edge),
+        }
+    }
 }
 
 #[test]
@@ -193,7 +225,7 @@ fn test_index() {
         for height in 0..=9 {
             if validate_grid_size(width, height).is_ok() {
                 let grid = HexGrid::<i32>::new_with_defaults(width, height);
-                for (i, pos) in grid.range().enumerate() {
+                for (i, pos) in grid.hex_range().enumerate() {
                     assert_eq!(
                         grid.index(pos),
                         i,

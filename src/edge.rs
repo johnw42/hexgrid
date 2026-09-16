@@ -1,4 +1,8 @@
-use crate::corner::HexCorner;
+use crate::{
+    HexCoord,
+    corner::HexCorner,
+    pos::{HexPos, HexPosIterator},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HexEdge {
@@ -50,6 +54,49 @@ impl HexEdge {
     pub fn steps_to(self, other: HexEdge) -> i32 {
         let diff = (other as i32 - self as i32).rem_euclid(6);
         if diff > 3 { diff - 6 } else { diff }
+    }
+}
+
+pub struct HexEdgeIterator {
+    width: HexCoord,
+    edge: HexEdge,
+    pos: Option<HexPos>,
+    pos_iter: HexPosIterator,
+}
+
+impl HexEdgeIterator {
+    pub fn new(width: HexCoord, height: HexCoord) -> Self {
+        let mut pos_iter = HexPosIterator::new(width, height);
+        let pos = pos_iter.next();
+        Self {
+            width,
+            edge: HexEdge::TopRight,
+            pos,
+            pos_iter,
+        }
+    }
+}
+
+impl Iterator for HexEdgeIterator {
+    type Item = (HexPos, HexEdge);
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let pos = self.pos?;
+            let edge = self.edge;
+            self.edge = self.edge.rotate(1);
+            if self.edge == HexEdge::TopRight {
+                self.pos = self.pos_iter.next();
+            }
+            let is_valid_edge = match edge {
+                HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft => true,
+                HexEdge::BottomLeft => pos.u() == 0 || pos.v() == 0,
+                HexEdge::Bottom => pos.v() <= 1,
+                HexEdge::BottomRight => pos.v() == 0 || (pos.v() == 1 && pos.u() == self.width - 1),
+            };
+            if is_valid_edge {
+                return Some((pos, edge));
+            }
+        }
     }
 }
 

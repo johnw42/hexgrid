@@ -3,12 +3,21 @@ use egui::Pos2;
 use hexgrid::{
     Cartesian, Distance, HEX_HEIGHT, HEX_WIDTH, HexCoord,
     corner::HexCorner,
+    edge::HexEdge,
     grid::HexGrid,
     pos::{HexPos, NearestCorner, NearestEdge},
     validate_grid_size,
 };
+use std::panic::{self, AssertUnwindSafe, catch_unwind};
 
 fn main() {
+    panic::set_hook(Box::new(|info| {
+        eprintln!(
+            "Panic occurred at {:?}: {:?}",
+            info.location(),
+            info.payload_as_str()
+        );
+    }));
     let native_options = eframe::NativeOptions::default();
     let _ = eframe::run_native(
         "My egui App",
@@ -17,7 +26,7 @@ fn main() {
     );
 }
 
-type DemoGrid = HexGrid<bool, bool, ()>;
+type DemoGrid = HexGrid<bool, bool, bool>;
 
 struct DemoApp {
     width: HexCoord,
@@ -76,8 +85,8 @@ impl eframe::App for DemoApp {
     }
 }
 struct HexView<'g> {
-    pub scale: f32,
-    pub grid: &'g mut DemoGrid,
+    scale: f32,
+    grid: &'g mut DemoGrid,
 }
 
 fn reflect_vertical((x, y): Cartesian) -> Cartesian {
@@ -112,7 +121,22 @@ impl<'g> egui::Widget for HexView<'g> {
             .map(HexPos::from_center)
             .filter(|&pos| self.grid.has_hex(pos));
 
-        for (i, pos) in self.grid.range().enumerate() {
+        let paint_edge_line = |pos: HexPos, edge: HexEdge, color: egui::Color32| {
+            let [corner1, corner2] = edge.ends();
+            painter.line_segment(
+                [
+                    hex_to_widget(pos.corner_pos(corner1)),
+                    hex_to_widget(pos.corner_pos(corner2)),
+                ],
+                egui::Stroke::new(3.0, color),
+            );
+        };
+
+        let paint_corner_dot = |pos: HexPos, corner: HexCorner, color: egui::Color32| {
+            painter.circle_filled(hex_to_widget(pos.corner_pos(corner)), 5.0, color);
+        };
+
+        for (i, pos) in self.grid.hex_range().enumerate() {
             painter.add(egui::Shape::convex_polygon(
                 HexCorner::ALL
                     .into_iter()
@@ -135,32 +159,78 @@ impl<'g> egui::Widget for HexView<'g> {
                 egui::TextStyle::Body.resolve(ui.style()),
                 egui::Color32::WHITE,
             );
-        }
 
-        if let Some(hover_hex) = hover_hex {
-            if response.clicked() {
-                println!("Clicked hex: {}", hover_hex);
-                *self.grid.hex_mut(hover_hex) = !*self.grid.hex(hover_hex);
+            for edge in [HexEdge::BottomLeft, HexEdge::Bottom, HexEdge::BottomRight] {
+                eprintln!("getting edges for {}  {:?}", pos, edge);
+                if let Ok(flag) = catch_unwind(AssertUnwindSafe(|| *self.grid.edge(pos, edge)))
+                    && flag
+                {
+                    paint_edge_line(pos, edge, egui::Color32::WHITE);
+                }
             }
 
-            let pos = latest_pos.unwrap();
+            // for corner in HexCorner::ALL {
+            //     if *self.grid.corner(pos, corner) {
+            //         paint_corner_dot(pos, corner, egui::Color32::WHITE);
+            //     }
+            // }
+        }
 
+        for (pos, edge) in self.grid.edge_range() {
+            match edge {
+                HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft => {}
+                _ => {
+                    paint_edge_line(pos, edge, egui::Color32::WHITE);
+                }
+            }
+        }
+
+        for (pos, corner) in self.grid.corner_range() {
+            match corner {
+                HexCorner::Right | HexCorner::TopRight | HexCorner::TopLeft => {}
+                _ => {
+                    paint_corner_dot(pos, corner, egui::Color32::WHITE);
+                }
+            }
+        }
+
+        let mut hover_edge = None;
+        let mut hover_corner = None;
+        if let Some(hover_hex) = hover_hex {
+            let pos = latest_pos.unwrap();
             let NearestEdge { distance, edge } = hover_hex.nearest_edge(pos);
             if distance < 0.5 {
-                painter.line_segment(
-                    [
-                        hex_to_widget(hover_hex.corner_pos(edge.ends()[0])),
-                        hex_to_widget(hover_hex.corner_pos(edge.ends()[1])),
-                    ],
-                    egui::Stroke::new(3.0, egui::Color32::GREEN),
-                );
+                hover_edge = Some((hover_hex, edge));
             }
 
             let NearestCorner {
-                distance, point, ..
+                distance, corner, ..
             } = hover_hex.nearest_corner(pos);
             if distance < 0.5 {
-                painter.circle_filled(hex_to_widget(point), 5.0, egui::Color32::YELLOW);
+                hover_corner = Some((hover_hex, corner));
+            }
+        }
+
+        if let Some((hover_hex, hover_edge)) = hover_edge {
+            paint_edge_line(hover_hex, hover_edge, egui::Color32::GREEN);
+        }
+        if let Some((hover_hex, hover_corner)) = hover_corner {
+            paint_corner_dot(hover_hex, hover_corner, egui::Color32::GREEN);
+        }
+
+        if response.clicked() {
+            let toggle = |flag: &mut bool| {
+                *flag = !*flag;
+            };
+
+            if let Some(hover_hex) = hover_hex {
+                toggle(self.grid.hex_mut(hover_hex));
+            }
+            if let Some((hover_hex, hover_edge)) = hover_edge {
+                toggle(self.grid.edge_mut(hover_hex, hover_edge));
+            }
+            if let Some((hover_hex, hover_corner)) = hover_corner {
+                toggle(self.grid.corner_mut(hover_hex, hover_corner));
             }
         }
 

@@ -1,4 +1,8 @@
-use crate::edge::HexEdge;
+use crate::{
+    HexCoord,
+    edge::HexEdge,
+    pos::{HexPos, HexPosIterator},
+};
 use std::f32::consts::{FRAC_PI_3, PI};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -66,6 +70,52 @@ impl HexCorner {
             HexCorner::Left => [HexEdge::TopLeft, HexEdge::BottomLeft],
             HexCorner::BottomLeft => [HexEdge::BottomLeft, HexEdge::Bottom],
             HexCorner::BottomRight => [HexEdge::Bottom, HexEdge::BottomRight],
+        }
+    }
+}
+
+pub struct HexCornerIterator {
+    width: HexCoord,
+    corner: HexCorner,
+    pos: Option<HexPos>,
+    pos_iter: HexPosIterator,
+}
+
+impl HexCornerIterator {
+    pub fn new(width: HexCoord, height: HexCoord) -> Self {
+        let mut pos_iter = HexPosIterator::new(width, height);
+        let pos = pos_iter.next();
+        Self {
+            width,
+            corner: HexCorner::TopRight,
+            pos,
+            pos_iter,
+        }
+    }
+}
+
+impl Iterator for HexCornerIterator {
+    type Item = (HexPos, HexCorner);
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let pos = self.pos?;
+            let corner = self.corner;
+            self.corner = self.corner.rotate(1);
+            if self.corner == HexCorner::TopRight {
+                self.pos = self.pos_iter.next();
+            }
+            let is_valid_corner = match corner {
+                HexCorner::Right | HexCorner::TopRight | HexCorner::TopLeft => true,
+                HexCorner::Left => pos.u() == 0,
+                HexCorner::BottomLeft => pos.v() == 0,
+                HexCorner::BottomRight => {
+                    pos.v() == 0
+                        || (self.width % 2 == 0 && pos.v() == 1 && pos.u() == self.width - 1)
+                }
+            };
+            if is_valid_corner {
+                return Some((pos, corner));
+            }
         }
     }
 }

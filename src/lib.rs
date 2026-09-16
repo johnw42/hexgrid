@@ -28,5 +28,8 @@ pub fn validate_grid_size(width: HexCoord, height: HexCoord) -> Result<(), &'sta
     if width > 1 && height <= 1 {
         return Err("Height must be greater than 1 if width is greater than 1");
     }
+    if height > 1 && width <= 1 {
+        return Err("Width must be greater than 1 if height is greater than 1");
+    }
     Ok(())
 }

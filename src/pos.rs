@@ -54,13 +54,14 @@ impl HexPos {
         self.1
     }
 
-    pub fn range(width: HexCoord, height: HexCoord) -> HexPosRange {
-        HexPosRange {
-            u: 0,
-            v: 0,
-            width,
-            height,
-        }
+    pub fn shift(self, du: HexCoord, dv: HexCoord) -> Self {
+        let HexPos(u, v) = self;
+        HexPos::new(u + du, v + dv)
+    }
+
+    pub fn in_range(self, width: HexCoord, height: HexCoord) -> bool {
+        let HexPos(u, v) = self;
+        u >= 0 && u < width && v >= 0 && v < height
     }
 
     pub fn from_center((x, y): (f32, f32)) -> Self {
@@ -153,6 +154,7 @@ impl HexPos {
     }
 
     pub fn neighbors_at_corner(self, corner: HexCorner) -> [(Self, HexCorner); 2] {
+        // TODO: Do this without iterating over all edges.
         let mut result = [(self, corner); 2];
         let mut num_found = 0;
         for edge in HexEdge::ALL {
@@ -163,6 +165,7 @@ impl HexPos {
                 num_found += 1;
             }
         }
+        debug_assert_eq!(num_found, 2, "Corner {:?} should have 2 neighbors", corner);
         result
     }
 
@@ -202,16 +205,44 @@ impl HexPos {
             point: (cpx, cpy),
         }
     }
+
+    pub fn norm_edge(self, edge: HexEdge) -> (HexPos, HexEdge) {
+        match edge {
+            HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft => (self, edge),
+            _ => {
+                let neighbor = self.neighbor(edge);
+                (neighbor, edge.opposite())
+            }
+        }
+    }
+
+    pub fn norm_corner(self, corner: HexCorner) -> (HexPos, HexCorner) {
+        match corner {
+            HexCorner::Right | HexCorner::TopRight | HexCorner::TopLeft => (self, corner),
+            _ => self.neighbors_at_corner(corner)[0],
+        }
+    }
 }
 
-pub struct HexPosRange {
+pub struct HexPosIterator {
     u: HexCoord,
     v: HexCoord,
     width: HexCoord,
     height: HexCoord,
 }
 
-impl Iterator for HexPosRange {
+impl HexPosIterator {
+    pub fn new(width: HexCoord, height: HexCoord) -> Self {
+        Self {
+            u: 0,
+            v: 0,
+            width,
+            height,
+        }
+    }
+}
+
+impl Iterator for HexPosIterator {
     type Item = HexPos;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -231,5 +262,28 @@ impl Iterator for HexPosRange {
         }
 
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn test_hex_pos_iterator() {
+        for width in 0..9 {
+            for height in 0..9 {
+                let expected = (0..height)
+                    .flat_map(|v| {
+                        (0..width)
+                            .filter(move |u| (u + v) % 2 == 0)
+                            .map(move |u| HexPos::new(u, v))
+                    })
+                    .collect::<HashSet<_>>();
+                let actual = HexPosIterator::new(width, height).collect::<HashSet<_>>();
+                assert_eq!(expected, actual);
+            }
+        }
     }
 }
