@@ -81,12 +81,12 @@ impl<H, E, C> HexGrid<H, E, C> {
             for u in 0..(height / 2 + (width + 1) / 2) {
                 grid.bottom_left_edges
                     .push(e(HexPos::new(u, u % 2), HexEdge::BottomLeft));
+                grid.bottom_right_edges
+                    .push(e(HexPos::new(u, u % 2), HexEdge::BottomRight));
             }
             for u in 0..width {
                 grid.bottom_edges
                     .push(e(HexPos::new(u, u % 2), HexEdge::Bottom));
-                grid.bottom_right_edges
-                    .push(e(HexPos::new(u, u % 2), HexEdge::BottomRight));
             }
         }
 
@@ -204,12 +204,13 @@ impl<H, E, C> HexGrid<H, E, C> {
 
     pub fn edge_index(&self, pos: HexPos, edge: HexEdge) -> (usize, HexEdge) {
         match edge {
-            HexEdge::BottomLeft if pos.v() == 0 => ((pos.u() / 2 + self.height / 2) as usize, edge),
             HexEdge::BottomLeft if pos.u() == 0 => ((pos.v() / 2) as usize, edge),
+            HexEdge::BottomLeft if pos.v() == 0 => ((pos.u() / 2 + self.height / 2) as usize, edge),
             HexEdge::Bottom if pos.v() <= 1 => (pos.u() as usize, edge),
-            HexEdge::BottomRight if pos.v() == 0 || (pos.v() == 1 && pos.u() == self.width - 1) => {
-                (pos.u() as usize, edge)
+            HexEdge::BottomRight if pos.u() == self.width - 1 => {
+                ((self.width / 2 + pos.v() / 2) as usize, edge)
             }
+            HexEdge::BottomRight if pos.v() == 0 => ((pos.u() / 2) as usize, edge),
             HexEdge::BottomLeft | HexEdge::Bottom | HexEdge::BottomRight => {
                 let neighbor = pos.neighbor(edge);
                 (self.index(neighbor), edge.opposite())

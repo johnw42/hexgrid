@@ -91,7 +91,7 @@ impl Iterator for HexEdgeIterator {
                 HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft => true,
                 HexEdge::BottomLeft => pos.u() == 0 || pos.v() == 0,
                 HexEdge::Bottom => pos.v() <= 1,
-                HexEdge::BottomRight => pos.v() == 0 || (pos.v() == 1 && pos.u() == self.width - 1),
+                HexEdge::BottomRight => pos.v() == 0 || pos.u() == self.width - 1,
             };
             if is_valid_edge {
                 return Some((pos, edge));
