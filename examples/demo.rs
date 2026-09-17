@@ -11,13 +11,6 @@ use hexgrid::{
 use std::panic::{self, AssertUnwindSafe, catch_unwind};
 
 fn main() {
-    panic::set_hook(Box::new(|info| {
-        eprintln!(
-            "Panic occurred at {:?}: {:?}",
-            info.location(),
-            info.payload_as_str()
-        );
-    }));
     let native_options = eframe::NativeOptions::default();
     let _ = eframe::run_native(
         "My egui App",
@@ -136,6 +129,15 @@ impl<'g> egui::Widget for HexView<'g> {
             painter.circle_filled(hex_to_widget(pos.corner_pos(corner)), 5.0, color);
         };
 
+        for (pos, corner) in self.grid.corner_range() {
+            match corner {
+                HexCorner::Right | HexCorner::TopRight | HexCorner::TopLeft => {}
+                _ => {
+                    paint_corner_dot(pos, corner, egui::Color32::WHITE);
+                }
+            }
+        }
+
         for (i, pos) in self.grid.hex_range().enumerate() {
             painter.add(egui::Shape::convex_polygon(
                 HexCorner::ALL
@@ -151,7 +153,6 @@ impl<'g> egui::Widget for HexView<'g> {
                 },
                 egui::Stroke::new(1.0, egui::Color32::WHITE),
             ));
-
             painter.text(
                 hex_to_widget(pos.center_pos()),
                 egui::Align2::CENTER_CENTER,
@@ -159,39 +160,20 @@ impl<'g> egui::Widget for HexView<'g> {
                 egui::TextStyle::Body.resolve(ui.style()),
                 egui::Color32::WHITE,
             );
-
+        }
+        for pos in self.grid.hex_range() {
             for edge in HexEdge::ALL {
-                if let Ok(flag) = catch_unwind(AssertUnwindSafe(|| *self.grid.edge(pos, edge)))
-                    && flag
-                {
+                if *self.grid.edge(pos, edge) {
                     paint_edge_line(pos, edge, egui::Color32::WHITE);
                 }
             }
 
-            // for corner in HexCorner::ALL {
-            //     if *self.grid.corner(pos, corner) {
-            //         paint_corner_dot(pos, corner, egui::Color32::WHITE);
-            //     }
-            // }
+            for corner in HexCorner::ALL {
+                if *self.grid.corner(pos, corner) {
+                    paint_corner_dot(pos, corner, egui::Color32::WHITE);
+                }
+            }
         }
-
-        // for (pos, edge) in self.grid.edge_range() {
-        //     match edge {
-        //         HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft => {}
-        //         _ => {
-        //             paint_edge_line(pos, edge, egui::Color32::WHITE);
-        //         }
-        //     }
-        // }
-
-        // for (pos, corner) in self.grid.corner_range() {
-        //     match corner {
-        //         HexCorner::Right | HexCorner::TopRight | HexCorner::TopLeft => {}
-        //         _ => {
-        //             paint_corner_dot(pos, corner, egui::Color32::WHITE);
-        //         }
-        //     }
-        // }
 
         let mut hover_edge = None;
         let mut hover_corner = None;
@@ -222,19 +204,27 @@ impl<'g> egui::Widget for HexView<'g> {
                 *flag = !*flag;
             };
 
-            // if let Some((hover_hex, hover_corner)) = hover_corner {
-            //     toggle(self.grid.corner_mut(hover_hex, hover_corner));
-            // } else
-            if let Some((hover_hex, hover_edge)) = hover_edge {
+            if let Some((hover_hex, hover_corner)) = hover_corner {
                 eprintln!(
-                    "edge_index({:?}, {:?}) = {:?}",
+                    "corner_index({:?}, {:?}) = {:?}",
                     hover_hex,
-                    hover_edge,
-                    self.grid.edge_index(hover_hex, hover_edge)
+                    hover_corner,
+                    self.grid.corner_index(hover_hex, hover_corner)
                 );
 
-                toggle(self.grid.edge_mut(hover_hex, hover_edge));
-            } else if let Some(hover_hex) = hover_hex {
+                toggle(self.grid.corner_mut(hover_hex, hover_corner));
+            } else
+            // if let Some((hover_hex, hover_edge)) = hover_edge {
+            //     eprintln!(
+            //         "edge_index({:?}, {:?}) = {:?}",
+            //         hover_hex,
+            //         hover_edge,
+            //         self.grid.edge_index(hover_hex, hover_edge)
+            //     );
+
+            //     toggle(self.grid.edge_mut(hover_hex, hover_edge));
+            // } else
+            if let Some(hover_hex) = hover_hex {
                 toggle(self.grid.hex_mut(hover_hex));
             }
         }

@@ -18,6 +18,9 @@ pub struct HexGrid<H, E = (), C = ()> {
     bottom_left_edges: Vec<E>,
     bottom_edges: Vec<E>,
     bottom_right_edges: Vec<E>,
+    left_corners: Vec<C>,
+    bottom_left_corners: Vec<C>,
+    bottom_right_corners: Vec<C>,
     width: HexCoord,
     height: HexCoord,
     even_row_size: HexCoord,
@@ -53,6 +56,9 @@ impl<H, E, C> HexGrid<H, E, C> {
             bottom_left_edges: Vec::new(),
             bottom_edges: Vec::new(),
             bottom_right_edges: Vec::new(),
+            left_corners: Vec::new(),
+            bottom_left_corners: Vec::new(),
+            bottom_right_corners: Vec::new(),
             width,
             height,
             even_row_size,
@@ -77,7 +83,6 @@ impl<H, E, C> HexGrid<H, E, C> {
                 };
                 grid.hexes.push(hex);
             }
-            //TODO
             for u in 0..(height / 2 + (width + 1) / 2) {
                 grid.bottom_left_edges
                     .push(e(HexPos::new(u, u % 2), HexEdge::BottomLeft));
@@ -87,6 +92,16 @@ impl<H, E, C> HexGrid<H, E, C> {
             for u in 0..width {
                 grid.bottom_edges
                     .push(e(HexPos::new(u, u % 2), HexEdge::Bottom));
+            }
+            for i in 0..(height + 1) / 2 {
+                grid.left_corners
+                    .push(c(HexPos::new(0, 2 * i), HexCorner::Left));
+            }
+            for u in 0..(width + 1) {
+                grid.bottom_left_corners
+                    .push(c(HexPos::new(u, u % 2), HexCorner::BottomLeft));
+                grid.bottom_right_corners
+                    .push(c(HexPos::new(u, u % 2), HexCorner::BottomRight));
             }
         }
 
@@ -170,21 +185,23 @@ impl<H, E, C> HexGrid<H, E, C> {
     }
 
     pub fn corner(&self, pos: HexPos, corner: HexCorner) -> &C {
-        assert!(
-            self.has_hex(pos),
-            "Hex at position {:?} does not exist",
-            pos
-        );
-        todo!()
+        let (index, corner) = self.corner_index(pos, corner);
+        match corner {
+            HexCorner::Left => &self.left_corners[index],
+            HexCorner::BottomLeft => &self.bottom_left_corners[index],
+            HexCorner::BottomRight => &self.bottom_right_corners[index],
+            _ => &self.hexes[index].corners[corner as usize],
+        }
     }
 
     pub fn corner_mut(&mut self, pos: HexPos, corner: HexCorner) -> &mut C {
-        assert!(
-            self.has_hex(pos),
-            "Hex at position {:?} does not exist",
-            pos
-        );
-        todo!()
+        let (index, corner) = self.corner_index(pos, corner);
+        match corner {
+            HexCorner::Left => &mut self.left_corners[index],
+            HexCorner::BottomLeft => &mut self.bottom_left_corners[index],
+            HexCorner::BottomRight => &mut self.bottom_right_corners[index],
+            _ => &mut self.hexes[index].corners[corner as usize],
+        }
     }
 
     fn index(&self, pos: HexPos) -> usize {
@@ -217,6 +234,34 @@ impl<H, E, C> HexGrid<H, E, C> {
             }
             _ => (self.index(pos), edge),
         }
+    }
+
+    pub fn corner_index(&self, pos: HexPos, corner: HexCorner) -> (usize, HexCorner) {
+        eprintln!("corner_index: pos={:?}, corner={:?}", pos, corner);
+        let index = match corner {
+            HexCorner::Left if pos.u() == 0 => ((pos.v() / 2) as usize, corner),
+            HexCorner::Left if pos.v() == 0 => {
+                self.corner_index(pos.neighbor(HexEdge::TopLeft), HexCorner::BottomRight)
+            }
+            HexCorner::Left => {
+                self.corner_index(pos.neighbor(HexEdge::BottomLeft), HexCorner::TopRight)
+            }
+            HexCorner::BottomLeft if pos.v() < 2 => (pos.u() as usize, corner),
+            HexCorner::BottomLeft => {
+                self.corner_index(pos.neighbor(HexEdge::Bottom), HexCorner::TopLeft)
+            }
+            HexCorner::BottomRight if pos.v() < 2 => (pos.u() as usize, corner),
+            HexCorner::BottomRight => {
+                self.corner_index(pos.neighbor(HexEdge::Bottom), HexCorner::TopRight)
+            }
+            _ => (self.index(pos), corner),
+        };
+        eprintln!(
+            "corner_index: pos={:?}, corner={:?}, index={:?}",
+            pos, corner, index
+        );
+
+        index
     }
 }
 

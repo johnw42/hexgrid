@@ -107,9 +107,9 @@ impl Iterator for HexCornerIterator {
             let is_valid_corner = match corner {
                 HexCorner::Right | HexCorner::TopRight | HexCorner::TopLeft => true,
                 HexCorner::Left => pos.u() == 0,
-                HexCorner::BottomLeft => pos.v() == 0,
+                HexCorner::BottomLeft => pos.v() == 0 && pos.v() == 0 || pos.v() == 1,
                 HexCorner::BottomRight => {
-                    pos.v() == 0
+                    pos.v() < 2
                         || (self.width % 2 == 0 && pos.v() == 1 && pos.u() == self.width - 1)
                 }
             };
