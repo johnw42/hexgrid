@@ -237,8 +237,7 @@ impl<H, E, C> HexGrid<H, E, C> {
     }
 
     pub fn corner_index(&self, pos: HexPos, corner: HexCorner) -> (usize, HexCorner) {
-        eprintln!("corner_index: pos={:?}, corner={:?}", pos, corner);
-        let index = match corner {
+        match corner {
             HexCorner::Left if pos.u() == 0 => ((pos.v() / 2) as usize, corner),
             HexCorner::Left if pos.v() == 0 => {
                 self.corner_index(pos.neighbor(HexEdge::TopLeft), HexCorner::BottomRight)
@@ -255,33 +254,153 @@ impl<H, E, C> HexGrid<H, E, C> {
                 self.corner_index(pos.neighbor(HexEdge::Bottom), HexCorner::TopRight)
             }
             _ => (self.index(pos), corner),
-        };
-        eprintln!(
-            "corner_index: pos={:?}, corner={:?}, index={:?}",
-            pos, corner, index
-        );
+        }
+    }
 
-        index
+    pub fn perimeter(&self) -> HexGridPerimeterIterator {
+        HexGridPerimeterIterator::new(self.width, self.height)
     }
 }
 
-#[test]
-fn test_index() {
-    for width in 0..=9 {
-        for height in 0..=9 {
-            if validate_grid_size(width, height).is_ok() {
-                let grid = HexGrid::<i32>::new_with_defaults(width, height);
-                for (i, pos) in grid.hex_range().enumerate() {
-                    assert_eq!(
-                        grid.index(pos),
-                        i,
-                        "size: {:?}, pos: {:?}, i: {}",
-                        (width, height),
-                        pos,
-                        i
-                    );
+#[derive(PartialEq, Eq, Debug)]
+enum PerimeterTraveral {
+    Right,
+    Up,
+    Left,
+    Down,
+    Done,
+}
+
+pub struct HexGridPerimeterIterator(HexGridPerimeterIteratorData);
+
+enum HexGridPerimeterIteratorData {
+    Small(HexPosIterator),
+    Large {
+        u: HexCoord,
+        v: HexCoord,
+        width: HexCoord,
+        height: HexCoord,
+        traveral: PerimeterTraveral,
+    },
+}
+
+impl HexGridPerimeterIterator {
+    pub fn new(width: HexCoord, height: HexCoord) -> Self {
+        if width < 3 || height < 4 {
+            Self(HexGridPerimeterIteratorData::Small(HexPosIterator::new(
+                width, height,
+            )))
+        } else {
+            Self(HexGridPerimeterIteratorData::Large {
+                u: 0,
+                v: 0,
+                width,
+                height,
+                traveral: PerimeterTraveral::Right,
+            })
+        }
+    }
+}
+
+impl Iterator for HexGridPerimeterIterator {
+    type Item = HexPos;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match &mut self.0 {
+            HexGridPerimeterIteratorData::Small(iter) => iter.next(),
+            HexGridPerimeterIteratorData::Large {
+                u,
+                v,
+                width,
+                height,
+                traveral,
+            } => {
+                let pos = HexPos::new(*u, *v);
+                if *traveral == PerimeterTraveral::Right {
+                    if *v == 0 {
+                        *u += 1;
+                        *v = 1;
+                    } else {
+                        debug_assert_eq!(*v, 1);
+                        *u += 1;
+                        *v = 0;
+                    }
+                    if *u >= *width {
+                        *traveral = PerimeterTraveral::Up;
+                        (*u, *v) = pos.into();
+                    }
+                }
+                if *traveral == PerimeterTraveral::Up {
+                    *v += 2;
+                    if *v >= *height {
+                        *traveral = PerimeterTraveral::Left;
+                        (*u, *v) = pos.into();
+                    }
+                }
+                if *traveral == PerimeterTraveral::Left {
+                    if *v >= *height {
+                        *u -= 1;
+                        *v -= 1;
+                    } else {
+                        *u -= 1;
+                        *v += 1;
+                    }
+                    if *u < 0 {
+                        *traveral = PerimeterTraveral::Down;
+                        (*u, *v) = pos.into();
+                    }
+                }
+                if *traveral == PerimeterTraveral::Down {
+                    *v -= 2;
+                    if *u == 0 && *v == 0 {
+                        *traveral = PerimeterTraveral::Done;
+                    }
+                }
+
+                if *traveral == PerimeterTraveral::Done {
+                    None
+                } else {
+                    Some(pos)
                 }
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::iter_valid_sizes;
+    use std::collections::HashSet;
+
+    #[test]
+    fn index() {
+        for (width, height) in iter_valid_sizes() {
+            let grid = HexGrid::<i32>::new_with_defaults(width, height);
+            for (i, pos) in grid.hex_range().enumerate() {
+                assert_eq!(
+                    grid.index(pos),
+                    i,
+                    "size: {:?}, pos: {:?}, i: {}",
+                    (width, height),
+                    pos,
+                    i
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn perimeter() {
+        for (width, height) in iter_valid_sizes() {
+            eprintln!("perimeter: size: {:?}", (width, height));
+            let grid = HexGrid::<i32>::new_with_defaults(width, height);
+            // grid.perimeter()
+            //     .for_each(|pos| assert!(grid.has_hex(pos), "pos: {:?}", pos));
+            assert_eq!(
+                grid.perimeter().count(),
+                grid.perimeter().collect::<HashSet<_>>().len(),
+            );
         }
     }
 }

@@ -8,7 +8,6 @@ use hexgrid::{
     pos::{HexPos, NearestCorner, NearestEdge},
     validate_grid_size,
 };
-use std::panic::{self, AssertUnwindSafe, catch_unwind};
 
 fn main() {
     let native_options = eframe::NativeOptions::default();

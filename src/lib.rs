@@ -28,8 +28,12 @@ pub fn validate_grid_size(width: HexCoord, height: HexCoord) -> Result<(), &'sta
     if width > 1 && height <= 1 {
         return Err("Height must be greater than 1 if width is greater than 1");
     }
-    if height > 1 && width <= 1 {
-        return Err("Width must be greater than 1 if height is greater than 1");
-    }
     Ok(())
+}
+
+#[cfg(test)]
+fn iter_valid_sizes() -> impl Iterator<Item = (HexCoord, HexCoord)> {
+    (0..=9)
+        .flat_map(|width| (0..=9).map(move |height| (width, height)))
+        .filter(|&(width, height)| validate_grid_size(width, height).is_ok())
 }

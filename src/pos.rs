@@ -247,7 +247,7 @@ impl Iterator for HexPosIterator {
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut result = None;
-        while result.is_none() && self.v < self.height {
+        while result.is_none() && self.v < self.height && self.u < self.width {
             if (self.u + self.v) % 2 != 0 {
                 self.u += 1;
             }
@@ -255,7 +255,7 @@ impl Iterator for HexPosIterator {
                 result = Some(HexPos::new(self.u, self.v));
             }
             self.u += 1;
-            if self.u > self.width {
+            if self.u >= self.width {
                 self.u = 0;
                 self.v += 1;
             }
@@ -271,13 +271,13 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
-    fn test_hex_pos_iterator() {
+    fn hex_pos_iterator() {
         for width in 0..9 {
             for height in 0..9 {
                 let expected = (0..height)
                     .flat_map(|v| {
                         (0..width)
-                            .filter(move |u| (u + v) % 2 == 0)
+                            .filter(move |&u| (u + v) % 2 == 0)
                             .map(move |u| HexPos::new(u, v))
                     })
                     .collect::<HashSet<_>>();
