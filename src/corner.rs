@@ -204,6 +204,26 @@ impl HexPosWithCorner {
     }
 }
 
+impl From<(HexPos, HexCorner)> for HexPosWithCorner {
+    fn from((pos, corner): (HexPos, HexCorner)) -> Self {
+        Self::new(pos, corner)
+    }
+}
+
+impl From<HexPosWithCorner> for (HexPos, PrimaryHexCorner) {
+    fn from(pos_with_corner: HexPosWithCorner) -> Self {
+        let HexPosWithCorner { pos, corner } = pos_with_corner;
+        (pos, corner)
+    }
+}
+
+impl From<HexPosWithCorner> for (HexPos, HexCorner) {
+    fn from(pos_with_corner: HexPosWithCorner) -> Self {
+        let HexPosWithCorner { pos, corner } = pos_with_corner;
+        (pos, corner.into())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

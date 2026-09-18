@@ -116,8 +116,8 @@ mod tests {
 
     #[test]
     fn perimeter() {
-        for (width, height) in iter_valid_sizes() {
-            let grid = HexGrid::<i32>::new_with_defaults(width, height);
+        for size in iter_valid_sizes() {
+            let grid = HexGrid::<i32>::new_with_defaults(size);
             // TODO
             // grid.perimeter()
             //     .for_each(|pos: HexPos| assert!(grid.has_hex(pos), "pos: {:?}", pos));

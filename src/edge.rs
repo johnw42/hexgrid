@@ -125,6 +125,26 @@ impl HexPosWithEdge {
     }
 }
 
+impl From<(HexPos, HexEdge)> for HexPosWithEdge {
+    fn from((pos, edge): (HexPos, HexEdge)) -> Self {
+        Self::new(pos, edge)
+    }
+}
+
+impl From<HexPosWithEdge> for (HexPos, PrimaryHexEdge) {
+    fn from(pos_with_edge: HexPosWithEdge) -> Self {
+        let HexPosWithEdge { pos, edge } = pos_with_edge;
+        (pos, edge)
+    }
+}
+
+impl From<HexPosWithEdge> for (HexPos, HexEdge) {
+    fn from(pos_with_edge: HexPosWithEdge) -> Self {
+        let HexPosWithEdge { pos, edge } = pos_with_edge;
+        (pos, edge.into())
+    }
+}
+
 pub struct HexEdgeIterator {
     width: HexCoord,
     edge: HexEdge,

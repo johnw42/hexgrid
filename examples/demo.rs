@@ -4,9 +4,8 @@ use hexgrid::{
     Cartesian, Distance, HEX_HEIGHT, HEX_WIDTH, HexCoord,
     corner::HexCorner,
     edge::HexEdge,
-    grid::HexGrid,
+    grid::{HexGrid, HexGridSize},
     pos::{HexPos, NearestCorner, NearestEdge},
-    validate_grid_size,
 };
 
 fn main() {
@@ -18,15 +17,35 @@ fn main() {
     );
 }
 
-type DemoGrid = HexGrid<bool, bool, bool>;
+struct GridContent<T> {
+    init_params: T,
+    is_active: bool,
+}
 
-fn new_demo_grid(width: HexCoord, height: HexCoord) -> DemoGrid {
+impl<T> GridContent<T> {
+    fn toggle(&mut self) {
+        self.is_active = !self.is_active;
+    }
+}
+
+type DemoGrid =
+    HexGrid<GridContent<HexPos>, GridContent<(HexPos, HexEdge)>, GridContent<(HexPos, HexCorner)>>;
+
+fn new_demo_grid(size: HexGridSize) -> DemoGrid {
     DemoGrid::new(
-        width,
-        height,
-        |_| false,
-        |_, e| matches!(e, HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft),
-        |_, c| matches!(c, HexCorner::Right | HexCorner::TopRight),
+        size,
+        |pos| GridContent {
+            init_params: pos,
+            is_active: false,
+        },
+        |pos, edge| GridContent {
+            init_params: (pos, edge),
+            is_active: matches!(edge, HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft),
+        },
+        |pos, corner| GridContent {
+            init_params: (pos, corner),
+            is_active: matches!(corner, HexCorner::Right | HexCorner::TopRight),
+        },
     )
 }
 
@@ -48,7 +67,9 @@ impl DemoApp {
         Self {
             width: INIT_WIDTH,
             height: INIT_HEIGHT,
-            grid: Some(new_demo_grid(INIT_WIDTH, INIT_HEIGHT)),
+            grid: Some(new_demo_grid(
+                HexGridSize::new(INIT_WIDTH, INIT_HEIGHT).unwrap(),
+            )),
         }
     }
 }
@@ -72,9 +93,9 @@ impl eframe::App for DemoApp {
                     .as_ref()
                     .is_none_or(|g| g.width() != self.width || g.height() != self.height)
             {
-                self.grid = validate_grid_size(self.width, self.height)
+                self.grid = HexGridSize::new(self.width, self.height)
                     .ok()
-                    .map(|_| new_demo_grid(self.width, self.height))
+                    .map(|size| new_demo_grid(size))
             }
 
             if let Some(grid) = &mut self.grid {
@@ -155,7 +176,7 @@ impl<'g> egui::Widget for HexView<'g> {
                     .collect(),
                 if hover_hex == Some(pos) {
                     egui::Color32::RED
-                } else if *self.grid.hex(pos) {
+                } else if self.grid.hex(pos).is_active {
                     egui::Color32::BLUE
                 } else {
                     egui::Color32::BLACK
@@ -172,13 +193,13 @@ impl<'g> egui::Widget for HexView<'g> {
         }
         for pos in self.grid.hex_range() {
             for edge in HexEdge::ALL {
-                if *self.grid.edge(pos, edge) {
+                if self.grid.edge(pos, edge).is_active {
                     paint_edge_line(pos, edge, 5.0, egui::Color32::WHITE);
                 }
             }
 
             for corner in HexCorner::ALL {
-                if *self.grid.corner(pos, corner) {
+                if self.grid.corner(pos, corner).is_active {
                     paint_corner_dot(pos, corner, 7.0, egui::Color32::WHITE);
                 }
             }
@@ -210,28 +231,31 @@ impl<'g> egui::Widget for HexView<'g> {
         }
 
         if response.clicked() {
-            let toggle = |flag: &mut bool| {
-                *flag = !*flag;
-            };
-
             if let Some((hover_hex, hover_corner)) = hover_corner {
                 eprintln!(
-                    "Clicked corner {:?} of hex {:?} -> {:?}",
+                    "Clicked corner {:?} of hex {:?}; index: {:?}, init_params: {:?}",
                     hover_corner,
                     hover_hex,
-                    self.grid.corner_index(hover_hex, hover_corner)
+                    self.grid.corner_index(hover_hex, hover_corner),
+                    self.grid.corner(hover_hex, hover_corner).init_params
                 );
-                toggle(self.grid.corner_mut(hover_hex, hover_corner));
+                self.grid.corner_mut(hover_hex, hover_corner).toggle();
             } else if let Some((hover_hex, hover_edge)) = hover_edge {
-                // eprintln!(
-                //     "Clicked edge {:?} of hex {:?} -> {:?}",
-                //     hover_edge,
-                //     hover_hex,
-                //     self.grid.edge_index(hover_hex, hover_edge)
-                // );
-                toggle(self.grid.edge_mut(hover_hex, hover_edge));
+                eprintln!(
+                    "Clicked edge {:?} of hex {:?}; index: {:?}, init_params: {:?}",
+                    hover_edge,
+                    hover_hex,
+                    self.grid.edge_index(hover_hex, hover_edge),
+                    self.grid.edge(hover_hex, hover_edge).init_params
+                );
+                self.grid.edge_mut(hover_hex, hover_edge).toggle();
             } else if let Some(hover_hex) = hover_hex {
-                toggle(self.grid.hex_mut(hover_hex));
+                eprintln!(
+                    "Clicked hex {:?}; init_params: {:?}",
+                    hover_hex,
+                    self.grid.hex(hover_hex).init_params
+                );
+                self.grid.hex_mut(hover_hex).toggle();
             }
         }
 
