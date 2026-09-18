@@ -21,7 +21,13 @@ fn main() {
 type DemoGrid = HexGrid<bool, bool, bool>;
 
 fn new_demo_grid(width: HexCoord, height: HexCoord) -> DemoGrid {
-    DemoGrid::new(width, height, |_| false, |_, _| true, |_, _| true)
+    DemoGrid::new(
+        width,
+        height,
+        |_| false,
+        |_, e| matches!(e, HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft),
+        |_, c| matches!(c, HexCorner::Right | HexCorner::TopRight),
+    )
 }
 
 struct DemoApp {
@@ -182,16 +188,17 @@ impl<'g> egui::Widget for HexView<'g> {
         let mut hover_corner = None;
         if let Some(hover_hex) = hover_hex {
             let pos = latest_pos.unwrap();
-            let NearestEdge { distance, edge } = hover_hex.nearest_edge(pos);
-            if distance < 0.5 {
-                hover_edge = Some((hover_hex, edge));
-            }
 
             let NearestCorner {
                 distance, corner, ..
             } = hover_hex.nearest_corner(pos);
-            if distance < 0.5 {
+            if distance < 0.4 {
                 hover_corner = Some((hover_hex, corner));
+            }
+
+            let NearestEdge { distance, edge } = hover_hex.nearest_edge(pos);
+            if distance < 0.4 {
+                hover_edge = Some((hover_hex, edge));
             }
         }
 
@@ -208,8 +215,20 @@ impl<'g> egui::Widget for HexView<'g> {
             };
 
             if let Some((hover_hex, hover_corner)) = hover_corner {
+                eprintln!(
+                    "Clicked corner {:?} of hex {:?} -> {:?}",
+                    hover_corner,
+                    hover_hex,
+                    self.grid.corner_index(hover_hex, hover_corner)
+                );
                 toggle(self.grid.corner_mut(hover_hex, hover_corner));
             } else if let Some((hover_hex, hover_edge)) = hover_edge {
+                // eprintln!(
+                //     "Clicked edge {:?} of hex {:?} -> {:?}",
+                //     hover_edge,
+                //     hover_hex,
+                //     self.grid.edge_index(hover_hex, hover_edge)
+                // );
                 toggle(self.grid.edge_mut(hover_hex, hover_edge));
             } else if let Some(hover_hex) = hover_hex {
                 toggle(self.grid.hex_mut(hover_hex));

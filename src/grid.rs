@@ -4,6 +4,7 @@ use crate::{
     HexCoord,
     corner::{HexCorner, HexCornerIterator},
     edge::{HexEdge, HexEdgeIterator},
+    perimeter::HexGridPerimeterIterator,
     pos::{HexPos, HexPosIterator},
     validate_grid_size,
 };
@@ -81,11 +82,29 @@ impl<H, E, C> HexGrid<H, E, C> {
                 };
                 grid.hexes.push(hex);
             }
-            for u in 0..(height / 2 + (width + 1) / 2) {
+            for i in 0..((height + 1) / 2) {
                 grid.bottom_left_edges
-                    .push(e(HexPos::new(u, u % 2), HexEdge::BottomLeft));
+                    .push(e(HexPos::new(0, i * 2), HexEdge::BottomLeft));
+            }
+            for i in 1..((width + 1) / 2) {
+                grid.bottom_left_edges
+                    .push(e(HexPos::new(i * 2, 0), HexEdge::BottomLeft));
+            }
+
+            for i in 0..((width + 1) / 2) {
                 grid.bottom_right_edges
-                    .push(e(HexPos::new(u, u % 2), HexEdge::BottomRight));
+                    .push(e(HexPos::new(0, i * 2), HexEdge::BottomRight));
+            }
+            if width % 2 == 0 {
+                for i in 0..(height / 2) {
+                    grid.bottom_right_edges
+                        .push(e(HexPos::new(width - 1, i * 2 + 1), HexEdge::BottomRight));
+                }
+            } else {
+                for i in 1..((height + 1) / 2) {
+                    grid.bottom_right_edges
+                        .push(e(HexPos::new(width - 1, i * 2), HexEdge::BottomRight));
+                }
             }
             for u in 0..width {
                 grid.bottom_edges
@@ -101,7 +120,7 @@ impl<H, E, C> HexGrid<H, E, C> {
                         .push(c(HexPos::new(2 * i + 1, height - 1), HexCorner::TopLeft));
                 }
             } else {
-                for i in 0..((width + 1) / 2) {
+                for i in 1..((width + 1) / 2) {
                     grid.top_left_corners
                         .push(c(HexPos::new(2 * i, height - 1), HexCorner::TopLeft));
                 }
@@ -110,9 +129,15 @@ impl<H, E, C> HexGrid<H, E, C> {
                 grid.left_corners
                     .push(c(HexPos::new(0, 2 * i), HexCorner::Left));
             }
-            for u in 0..(width + 1) {
+            for i in 0..((height + 1) / 2) {
                 grid.bottom_left_corners
-                    .push(c(HexPos::new(u, u % 2), HexCorner::BottomLeft));
+                    .push(c(HexPos::new(0, 2 * i), HexCorner::BottomLeft));
+            }
+            for i in 1..((width + 1) / 2) {
+                grid.bottom_left_corners
+                    .push(c(HexPos::new(i * 2, 0), HexCorner::BottomLeft));
+            }
+            for u in 0..width {
                 grid.bottom_right_corners
                     .push(c(HexPos::new(u, u % 2), HexCorner::BottomRight));
             }
@@ -240,12 +265,14 @@ impl<H, E, C> HexGrid<H, E, C> {
         match edge {
             HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft => (self.index(pos), edge),
             HexEdge::BottomLeft if pos.u() == 0 => ((pos.v() / 2) as usize, edge),
-            HexEdge::BottomLeft if pos.v() == 0 => ((pos.u() / 2 + self.height / 2) as usize, edge),
+            HexEdge::BottomLeft if pos.v() == 0 => {
+                ((pos.u() / 2 + (self.height + 1) / 2 - 1) as usize, edge)
+            }
             HexEdge::Bottom if pos.v() <= 1 => (pos.u() as usize, edge),
+            HexEdge::BottomRight if pos.v() == 0 => ((pos.u() / 2) as usize, edge),
             HexEdge::BottomRight if pos.u() == self.width - 1 => {
                 ((self.width / 2 + pos.v() / 2) as usize, edge)
             }
-            HexEdge::BottomRight if pos.v() == 0 => ((pos.u() / 2) as usize, edge),
             HexEdge::BottomLeft | HexEdge::Bottom | HexEdge::BottomRight => {
                 let neighbor = pos.neighbor(edge);
                 (self.index(neighbor), edge.opposite())
@@ -270,9 +297,12 @@ impl<H, E, C> HexGrid<H, E, C> {
             HexCorner::Left => {
                 self.corner_index(pos.neighbor(HexEdge::BottomLeft), HexCorner::TopRight)
             }
-            HexCorner::BottomLeft if pos.v() < 2 => (pos.u() as usize, corner),
+            HexCorner::BottomLeft if pos.u() == 0 => ((pos.v() / 2) as usize, corner),
+            HexCorner::BottomLeft if pos.v() == 0 => {
+                (((self.height + 1) / 2 + pos.u() / 2 - 1) as usize, corner)
+            }
             HexCorner::BottomLeft => {
-                self.corner_index(pos.neighbor(HexEdge::Bottom), HexCorner::TopLeft)
+                self.corner_index(pos.neighbor(HexEdge::BottomLeft), HexCorner::Right)
             }
             HexCorner::BottomRight if pos.v() < 2 => (pos.u() as usize, corner),
             HexCorner::BottomRight => {
@@ -283,111 +313,6 @@ impl<H, E, C> HexGrid<H, E, C> {
 
     pub fn perimeter(&self) -> HexGridPerimeterIterator {
         HexGridPerimeterIterator::new(self.width, self.height)
-    }
-}
-
-#[derive(PartialEq, Eq, Debug)]
-enum PerimeterTraveral {
-    Right,
-    Up,
-    Left,
-    Down,
-    Done,
-}
-
-pub struct HexGridPerimeterIterator(HexGridPerimeterIteratorData);
-
-enum HexGridPerimeterIteratorData {
-    Small(HexPosIterator),
-    Large {
-        u: HexCoord,
-        v: HexCoord,
-        width: HexCoord,
-        height: HexCoord,
-        traveral: PerimeterTraveral,
-    },
-}
-
-impl HexGridPerimeterIterator {
-    pub fn new(width: HexCoord, height: HexCoord) -> Self {
-        if width < 3 || height < 4 {
-            Self(HexGridPerimeterIteratorData::Small(HexPosIterator::new(
-                width, height,
-            )))
-        } else {
-            Self(HexGridPerimeterIteratorData::Large {
-                u: 0,
-                v: 0,
-                width,
-                height,
-                traveral: PerimeterTraveral::Right,
-            })
-        }
-    }
-}
-
-impl Iterator for HexGridPerimeterIterator {
-    type Item = HexPos;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match &mut self.0 {
-            HexGridPerimeterIteratorData::Small(iter) => iter.next(),
-            HexGridPerimeterIteratorData::Large {
-                u,
-                v,
-                width,
-                height,
-                traveral,
-            } => {
-                let pos = HexPos::new(*u, *v);
-                if *traveral == PerimeterTraveral::Right {
-                    if *v == 0 {
-                        *u += 1;
-                        *v = 1;
-                    } else {
-                        debug_assert_eq!(*v, 1);
-                        *u += 1;
-                        *v = 0;
-                    }
-                    if *u >= *width {
-                        *traveral = PerimeterTraveral::Up;
-                        (*u, *v) = pos.into();
-                    }
-                }
-                if *traveral == PerimeterTraveral::Up {
-                    *v += 2;
-                    if *v >= *height {
-                        *traveral = PerimeterTraveral::Left;
-                        (*u, *v) = pos.into();
-                    }
-                }
-                if *traveral == PerimeterTraveral::Left {
-                    if *v >= *height {
-                        *u -= 1;
-                        *v -= 1;
-                    } else {
-                        *u -= 1;
-                        *v += 1;
-                    }
-                    if *u < 0 {
-                        *traveral = PerimeterTraveral::Down;
-                        (*u, *v) = pos.into();
-                    }
-                }
-                if *traveral == PerimeterTraveral::Down {
-                    *v -= 2;
-                    if *u == 0 && *v == 0 {
-                        *traveral = PerimeterTraveral::Done;
-                    }
-                }
-
-                if *traveral == PerimeterTraveral::Done {
-                    None
-                } else {
-                    Some(pos)
-                }
-            }
-        }
     }
 }
 
@@ -415,16 +340,67 @@ mod tests {
     }
 
     #[test]
-    fn perimeter() {
+    fn vec_dimensions() {
         for (width, height) in iter_valid_sizes() {
-            eprintln!("perimeter: size: {:?}", (width, height));
+            eprintln!("size: {:?}", (width, height));
             let grid = HexGrid::<i32>::new_with_defaults(width, height);
-            // grid.perimeter()
-            //     .for_each(|pos| assert!(grid.has_hex(pos), "pos: {:?}", pos));
-            assert_eq!(
-                grid.perimeter().count(),
-                grid.perimeter().collect::<HashSet<_>>().len(),
-            );
+            let mut hex_grid_size = 0;
+            let mut bottom_left_edges_size = 0;
+            let mut bottom_edges_size = 0;
+            let mut bottom_right_edges_size = 0;
+            let mut top_left_corners_size = 0;
+            let mut left_corners_size = 0;
+            let mut bottom_left_corners_size = 0;
+            let mut bottom_right_corners_size = 0;
+
+            for pos in grid.hex_range() {
+                let index = grid.index(pos);
+                hex_grid_size = hex_grid_size.max(index + 1);
+
+                for edge in HexEdge::ALL {
+                    let (index, index_edge) = grid.edge_index(pos, edge);
+                    match index_edge {
+                        HexEdge::BottomLeft => {
+                            bottom_left_edges_size = bottom_left_edges_size.max(index + 1);
+                        }
+                        HexEdge::Bottom => {
+                            bottom_edges_size = bottom_edges_size.max(index + 1);
+                        }
+                        HexEdge::BottomRight => {
+                            bottom_right_edges_size = bottom_right_edges_size.max(index + 1);
+                        }
+                        _ => {}
+                    }
+                }
+
+                for corner in HexCorner::ALL {
+                    let (index, index_corner) = grid.corner_index(pos, corner);
+                    match index_corner {
+                        HexCorner::TopLeft => {
+                            top_left_corners_size = top_left_corners_size.max(index + 1);
+                        }
+                        HexCorner::Left => {
+                            left_corners_size = left_corners_size.max(index + 1);
+                        }
+                        HexCorner::BottomLeft => {
+                            bottom_left_corners_size = bottom_left_corners_size.max(index + 1);
+                        }
+                        HexCorner::BottomRight => {
+                            bottom_right_corners_size = bottom_right_corners_size.max(index + 1);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            assert_eq!(hex_grid_size, grid.hexes.len());
+            assert_eq!(bottom_left_edges_size, grid.bottom_left_edges.len());
+            assert_eq!(bottom_edges_size, grid.bottom_edges.len());
+            assert_eq!(bottom_right_edges_size, grid.bottom_right_edges.len());
+            assert_eq!(top_left_corners_size, grid.top_left_corners.len());
+            assert_eq!(left_corners_size, grid.left_corners.len());
+            assert_eq!(bottom_left_corners_size, grid.bottom_left_corners.len());
+            assert_eq!(bottom_right_corners_size, grid.bottom_right_corners.len());
         }
     }
 }
