@@ -74,6 +74,37 @@ impl HexCorner {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+
+pub enum PrimaryHexCorner {
+    Right,
+    TopRight,
+}
+
+impl PrimaryHexCorner {
+    pub const ALL: [PrimaryHexCorner; 2] = [PrimaryHexCorner::Right, PrimaryHexCorner::TopRight];
+}
+
+impl From<PrimaryHexCorner> for HexCorner {
+    fn from(corner: PrimaryHexCorner) -> Self {
+        match corner {
+            PrimaryHexCorner::Right => HexCorner::Right,
+            PrimaryHexCorner::TopRight => HexCorner::TopRight,
+        }
+    }
+}
+
+impl TryFrom<HexCorner> for PrimaryHexCorner {
+    type Error = ();
+    fn try_from(corner: HexCorner) -> Result<Self, Self::Error> {
+        match corner {
+            HexCorner::Right => Ok(PrimaryHexCorner::Right),
+            HexCorner::TopRight => Ok(PrimaryHexCorner::TopRight),
+            _ => Err(()),
+        }
+    }
+}
+
 pub struct HexCornerIterator {
     width: HexCoord,
     corner: HexCorner,
@@ -120,6 +151,59 @@ impl Iterator for HexCornerIterator {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct HexPosWithCorner {
+    pub pos: HexPos,
+    pub corner: PrimaryHexCorner,
+}
+
+impl HexPosWithCorner {
+    pub fn new(pos: HexPos, corner: HexCorner) -> Self {
+        match corner {
+            HexCorner::Right => Self {
+                pos,
+                corner: PrimaryHexCorner::Right,
+            },
+            HexCorner::TopRight => Self {
+                pos,
+                corner: PrimaryHexCorner::TopRight,
+            },
+            HexCorner::TopLeft => Self {
+                pos: pos.shift(-1, 1),
+                corner: PrimaryHexCorner::Right,
+            },
+            HexCorner::Left => Self {
+                pos: pos.shift(-1, -1),
+                corner: PrimaryHexCorner::TopRight,
+            },
+            HexCorner::BottomLeft => Self {
+                pos: pos.shift(-1, -1),
+                corner: PrimaryHexCorner::Right,
+            },
+            HexCorner::BottomRight => Self {
+                pos: pos.shift(0, -2),
+                corner: PrimaryHexCorner::TopRight,
+            },
+        }
+    }
+
+    pub fn variants(self) -> [(HexPos, HexCorner); 3] {
+        let Self { pos, corner } = self;
+        match corner {
+            PrimaryHexCorner::Right => [
+                (pos, HexCorner::Right),
+                (pos.shift(1, 1), HexCorner::BottomLeft),
+                (pos.shift(1, -1), HexCorner::TopLeft),
+            ],
+            PrimaryHexCorner::TopRight => [
+                (pos, HexCorner::TopRight),
+                (pos.shift(0, 2), HexCorner::BottomRight),
+                (pos.shift(1, 1), HexCorner::Left),
+            ],
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -145,6 +229,26 @@ mod tests {
                     steps,
                     rotated,
                     steps_back
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn variants() {
+        for corner in HexCorner::ALL {
+            let pos = HexPos::new(0, 0);
+            let pos_with_corner = HexPosWithCorner::new(pos, corner);
+            for (var_pos, var_corner) in pos_with_corner.variants() {
+                assert_eq!(
+                    HexPosWithCorner::new(var_pos, var_corner),
+                    HexPosWithCorner::new(pos, corner),
+                    "pos: {:?}, corner: {:?}, pos_with_corner: {:?}, var_pos: {:?}, var_corner: {:?}",
+                    pos,
+                    corner,
+                    pos_with_corner,
+                    var_pos,
+                    var_corner
                 );
             }
         }

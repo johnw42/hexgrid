@@ -57,6 +57,74 @@ impl HexEdge {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PrimaryHexEdge {
+    TopRight,
+    Top,
+    TopLeft,
+}
+
+impl PrimaryHexEdge {
+    pub const ALL: [PrimaryHexEdge; 3] = [
+        PrimaryHexEdge::TopRight,
+        PrimaryHexEdge::Top,
+        PrimaryHexEdge::TopLeft,
+    ];
+
+    pub fn opposite(self) -> HexEdge {
+        HexEdge::from(self).opposite()
+    }
+}
+
+impl From<PrimaryHexEdge> for HexEdge {
+    fn from(edge: PrimaryHexEdge) -> Self {
+        match edge {
+            PrimaryHexEdge::TopRight => HexEdge::TopRight,
+            PrimaryHexEdge::Top => HexEdge::Top,
+            PrimaryHexEdge::TopLeft => HexEdge::TopLeft,
+        }
+    }
+}
+
+impl TryFrom<HexEdge> for PrimaryHexEdge {
+    type Error = ();
+    fn try_from(edge: HexEdge) -> Result<Self, Self::Error> {
+        match edge {
+            HexEdge::TopRight => Ok(PrimaryHexEdge::TopRight),
+            HexEdge::Top => Ok(PrimaryHexEdge::Top),
+            HexEdge::TopLeft => Ok(PrimaryHexEdge::TopLeft),
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct HexPosWithEdge {
+    pub pos: HexPos,
+    pub edge: PrimaryHexEdge,
+}
+
+impl HexPosWithEdge {
+    pub fn new(pos: HexPos, edge: HexEdge) -> Self {
+        if let Ok(primary_edge) = edge.try_into() {
+            Self {
+                pos,
+                edge: primary_edge,
+            }
+        } else {
+            Self {
+                pos: pos.neighbor(edge),
+                edge: edge.opposite().try_into().unwrap(),
+            }
+        }
+    }
+
+    pub fn variants(self) -> [(HexPos, HexEdge); 2] {
+        let Self { pos, edge } = self;
+        [(pos, edge.into()), (pos.neighbor(edge), edge.opposite())]
+    }
+}
+
 pub struct HexEdgeIterator {
     width: HexCoord,
     edge: HexEdge,
@@ -148,6 +216,26 @@ mod tests {
             let ends = edge.ends();
             assert_eq!(ends[1], ends[0].rotate(1));
             assert_eq!(ends[0], ends[1].rotate(-1));
+        }
+    }
+
+    #[test]
+    fn variants() {
+        for edge in HexEdge::ALL {
+            let pos = HexPos::new(0, 0);
+            let pos_with_edge = HexPosWithEdge::new(pos, edge);
+            for (var_pos, var_edge) in pos_with_edge.variants() {
+                assert_eq!(
+                    HexPosWithEdge::new(var_pos, var_edge),
+                    HexPosWithEdge::new(pos, edge),
+                    "pos: {:?}, edge: {:?}, pos_with_edge: {:?}, var_pos: {:?}, var_edge: {:?}",
+                    pos,
+                    edge,
+                    pos_with_edge,
+                    var_pos,
+                    var_edge
+                );
+            }
         }
     }
 }

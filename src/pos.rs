@@ -118,9 +118,9 @@ impl HexPos {
     }
 
     /// Gets the neighboring hex in the given direction.
-    pub fn neighbor(self, edge: HexEdge) -> Self {
+    pub fn neighbor(self, edge: impl Into<HexEdge>) -> Self {
         let HexPos(u, v) = self;
-        match edge {
+        match edge.into() {
             HexEdge::TopRight => HexPos(u + 1, v + 1),
             HexEdge::Top => HexPos(u, v + 2),
             HexEdge::TopLeft => HexPos(u - 1, v + 1),
