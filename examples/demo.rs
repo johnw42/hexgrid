@@ -4,8 +4,9 @@ use hexgrid::{
     Cartesian, Distance, HEX_HEIGHT, HEX_WIDTH, HexCoord,
     corner::{HexCorner, HexPosWithCorner},
     edge::{HexEdge, HexPosWithEdge},
-    grid::HexGrid,
+    grid::{self, HexGrid},
     grid_size::HexGridSize,
+    perimeter::perimeter_edges,
     pos::{HexPos, HexPosContainer as _, NearestCorner, NearestEdge},
 };
 
@@ -16,6 +17,12 @@ fn main() {
         native_options,
         Box::new(|cc| Ok(Box::new(DemoApp::new(cc)))),
     );
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum Selection {
+    Owned,
+    Perimeter,
 }
 
 struct GridContent<T> {
@@ -32,28 +39,12 @@ impl<T> GridContent<T> {
 type DemoGrid =
     HexGrid<GridContent<HexPos>, GridContent<HexPosWithEdge>, GridContent<HexPosWithCorner>>;
 
-fn new_demo_grid(size: HexGridSize) -> DemoGrid {
-    DemoGrid::new(
-        size,
-        |pos| GridContent {
-            init_params: pos,
-            is_active: false,
-        },
-        |edge| GridContent {
-            init_params: edge,
-            is_active: size.contains_hex(edge.pos()),
-        },
-        |corner| GridContent {
-            init_params: corner,
-            is_active: size.contains_hex(corner.pos()),
-        },
-    )
-}
-
 struct DemoApp {
     width: HexCoord,
     height: HexCoord,
+    selection: Selection,
     grid: Option<DemoGrid>,
+    grid_selection: Option<Selection>,
 }
 
 const INIT_WIDTH: HexCoord = 5;
@@ -65,12 +56,62 @@ impl DemoApp {
         // Restore app state using cc.storage (requires the "persistence" feature).
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
         // for e.g. egui::PaintCallback.
-        Self {
+        let mut app = Self {
             width: INIT_WIDTH,
             height: INIT_HEIGHT,
-            grid: Some(new_demo_grid(
-                HexGridSize::new(INIT_WIDTH, INIT_HEIGHT).unwrap(),
-            )),
+            selection: Selection::Owned,
+            grid: None,
+            grid_selection: None,
+        };
+        app.create_grid();
+        app
+    }
+
+    fn create_grid(&mut self) {
+        self.grid = HexGridSize::new(self.width, self.height).ok().map(|size| {
+            DemoGrid::new(
+                size,
+                |pos| GridContent {
+                    init_params: pos,
+                    is_active: false,
+                },
+                |edge| GridContent {
+                    init_params: edge,
+                    is_active: self.selection == Selection::Owned && size.contains_hex(edge.pos()),
+                },
+                |corner| GridContent {
+                    init_params: corner,
+                    is_active: self.selection == Selection::Owned
+                        && size.contains_hex(corner.pos()),
+                },
+            )
+        });
+
+        if self.grid.is_some() {
+            self.grid_selection = Some(self.selection);
+            match self.selection {
+                Selection::Owned => {}
+                Selection::Perimeter => {
+                    self.clear_edge_and_corner_selection();
+                    let grid = self.grid.as_mut().unwrap();
+                    for (pos, edge) in perimeter_edges(grid) {
+                        grid.edge_mut(pos, edge).is_active = true;
+                    }
+                }
+            }
+        }
+    }
+
+    fn clear_edge_and_corner_selection(&mut self) {
+        if let Some(grid) = self.grid.as_mut() {
+            for pos in grid.iter_hexes() {
+                for edge in HexEdge::ALL {
+                    grid.edge_mut(pos, edge).is_active = false;
+                }
+                for corner in HexCorner::ALL {
+                    grid.corner_mut(pos, corner).is_active = false;
+                }
+            }
         }
     }
 }
@@ -87,16 +128,19 @@ impl eframe::App for DemoApp {
                 ui.end_row();
             });
             ui.label(format!("Grid size: {} x {}", self.width, self.height));
+            ui.horizontal(|ui| {
+                ui.label("Initial selection:");
+                ui.radio_value(&mut self.selection, Selection::Owned, "Owned");
+                ui.radio_value(&mut self.selection, Selection::Perimeter, "Perimeter");
+            });
 
-            if self.grid.is_none()
-                || self
-                    .grid
-                    .as_ref()
-                    .is_none_or(|g| g.width() != self.width || g.height() != self.height)
+            if self
+                .grid
+                .as_ref()
+                .is_none_or(|g| g.width() != self.width || g.height() != self.height)
+                || self.grid_selection != Some(self.selection)
             {
-                self.grid = HexGridSize::new(self.width, self.height)
-                    .ok()
-                    .map(new_demo_grid)
+                self.create_grid();
             }
 
             if let Some(grid) = &mut self.grid {

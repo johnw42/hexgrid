@@ -5,7 +5,6 @@ use crate::{
     corner::{HexCorner, HexCornerIterator, HexPosWithCorner},
     edge::{HexEdge, HexEdgeIterator, HexPosWithEdge},
     grid_size::HexGridSize,
-    perimeter::HexGridPerimeterIterator,
     pos::{HexPos, HexPosContainer, HexPosIterator},
 };
 use std::{
@@ -334,10 +333,6 @@ impl<H, E, C> HexGrid<H, E, C> {
                 self.corner_index(pos.neighbor(HexEdge::Bottom), HexCorner::TopRight)
             }
         }
-    }
-
-    pub fn perimeter(&self) -> HexGridPerimeterIterator {
-        HexGridPerimeterIterator::new(self.size)
     }
 }
 
