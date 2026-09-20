@@ -1,8 +1,8 @@
 use crate::{
-    edge::{self, HexEdge, HexPosWithEdge},
+    edge::HexEdge,
     pos::{HexPos, HexPosContainer},
 };
-use std::{collections::HashSet, hash::Hash};
+use std::collections::HashSet;
 
 pub struct HexPerimeterIterator<'c, C: HexPosContainer> {
     container: &'c C,
@@ -13,7 +13,12 @@ pub struct HexPerimeterIterator<'c, C: HexPosContainer> {
 
 enum HexPerimeterIteratorState {
     FindStartingHex,
-    TraverseBoundary(HexPos, HexEdge),
+    TraverseBoundary {
+        starting_hex: HexPos,
+        starting_edge: HexEdge,
+        current_hex: HexPos,
+        current_edge: HexEdge,
+    },
 }
 
 impl<'c, C> HexPerimeterIterator<'c, C>
@@ -50,20 +55,46 @@ where
                 if let Some(starting_edge) = exterior_edge
                     && self.edges_seen.insert((starting_hex, starting_edge))
                 {
-                    self.state =
-                        HexPerimeterIteratorState::TraverseBoundary(starting_hex, starting_edge);
+                    self.state = HexPerimeterIteratorState::TraverseBoundary {
+                        starting_hex,
+                        starting_edge,
+                        current_hex: starting_hex,
+                        current_edge: starting_edge,
+                    };
                     return Some((starting_hex, starting_edge));
                 }
             },
-            HexPerimeterIteratorState::TraverseBoundary(mut hex, mut edge) => {
+            HexPerimeterIteratorState::TraverseBoundary {
+                starting_hex,
+                starting_edge,
+                current_hex,
+                current_edge,
+            } => {
+                let mut hex = current_hex;
+                let mut edge = current_edge;
+
                 edge = edge.rotate(1);
                 if !self.is_exterior_edge(hex, edge) {
                     hex = hex.neighbor(edge);
                     edge = edge.rotate(-2);
                 }
-                if self.edges_seen.insert((hex, edge)) {
+
+                if hex == starting_hex && edge == starting_edge {
+                    // Completed one full perimeter, find next starting point
+                    self.state = HexPerimeterIteratorState::FindStartingHex;
+                    self.next()
+                } else if self.edges_seen.insert((hex, edge)) {
+                    // Found new edge, continue traversal
+                    self.state = HexPerimeterIteratorState::TraverseBoundary {
+                        starting_hex,
+                        starting_edge,
+                        current_hex: hex,
+                        current_edge: edge,
+                    };
                     Some((hex, edge))
                 } else {
+                    // Edge already seen but not back at start - something is wrong
+                    // This shouldn't happen if the algorithm is correct
                     self.state = HexPerimeterIteratorState::FindStartingHex;
                     self.next()
                 }
@@ -75,39 +106,38 @@ where
 pub fn perimeter_edges<C: HexPosContainer>(container: &C) -> Vec<(HexPos, HexEdge)> {
     let is_exterior_edge = |pos: HexPos, edge: HexEdge| !container.contains_hex(pos.neighbor(edge));
 
-    let mut hex_iter = container.iter_hexes();
     let mut edges_seen = HashSet::new();
     let mut result = Vec::new();
-    'regions: loop {
-        // Find an arbitrary starting hex on the perimeter.
-        let (starting_hex, starting_edge) = 'find_boundary: loop {
-            let Some(starting_hex) = hex_iter.next() else {
-                break 'regions;
-            };
-            let exterior_edge = HexEdge::ALL
-                .into_iter()
-                .find(|&edge| !container.contains_hex(starting_hex.neighbor(edge)));
-            if let Some(starting_edge) = exterior_edge
-                && edges_seen.insert((starting_hex, starting_edge))
-            {
-                break 'find_boundary (starting_hex, starting_edge);
-            }
-        };
 
+    for starting_hex in container.iter_hexes() {
+        let exterior_edge = HexEdge::ALL
+            .into_iter()
+            .find(|&edge| is_exterior_edge(starting_hex, edge));
+
+        let Some(starting_edge) = exterior_edge else {
+            continue;
+        };
+        if !edges_seen.insert((starting_hex, starting_edge)) {
+            continue;
+        }
+
+        // We have a new starting point on the perimeter
         let mut edge = starting_edge;
         let mut hex = starting_hex;
-        'traverse_boundary: loop {
+        loop {
             result.push((hex, edge));
+            edges_seen.insert((hex, edge));
             edge = edge.rotate(1);
             if !is_exterior_edge(hex, edge) {
                 hex = hex.neighbor(edge);
                 edge = edge.rotate(-2);
             }
             if hex == starting_hex && edge == starting_edge {
-                break 'traverse_boundary;
+                break;
             }
         }
     }
+
     result
 }
 
