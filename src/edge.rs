@@ -1,7 +1,7 @@
 use crate::{
     HexCoord,
     corner::HexCorner,
-    grid::HexGridSize,
+    grid_size::HexGridSize,
     pos::{HexPos, HexPosIterator},
 };
 

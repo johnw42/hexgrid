@@ -1,9 +1,10 @@
 #[cfg(test)]
-use crate::grid::HexGridSize;
+use crate::grid_size::HexGridSize;
 
 pub mod corner;
 pub mod edge;
 pub mod grid;
+pub mod grid_size;
 pub mod perimeter;
 pub mod pos;
 

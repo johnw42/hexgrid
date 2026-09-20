@@ -4,6 +4,7 @@ use crate::{
     HexCoord,
     corner::{HexCorner, HexCornerIterator, HexPosWithCorner},
     edge::{HexEdge, HexEdgeIterator, HexPosWithEdge},
+    grid_size::HexGridSize,
     perimeter::HexGridPerimeterIterator,
     pos::{HexPos, HexPosContainer, HexPosIterator},
 };
@@ -12,50 +13,6 @@ use std::{
     collections::HashMap,
     sync::Arc,
 };
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct HexGridSize {
-    width: HexCoord,
-    height: HexCoord,
-}
-
-impl HexGridSize {
-    pub const fn new(width: HexCoord, height: HexCoord) -> Result<Self, &'static str> {
-        if width < 0 || height < 0 {
-            return Err("Width and height must be non-negative");
-        }
-        if height == 0 && width != 0 {
-            return Err("Width must be 0 if height is 0");
-        }
-        if width == 0 && height != 0 {
-            return Err("Height must be 0 if width is 0");
-        }
-        if width > 1 && height <= 1 {
-            return Err("Height must be greater than 1 if width is greater than 1");
-        }
-        Ok(Self { width, height })
-    }
-
-    pub const fn width(&self) -> HexCoord {
-        self.width
-    }
-
-    pub const fn height(&self) -> HexCoord {
-        self.height
-    }
-}
-
-impl HexPosContainer for HexGridSize {
-    type Iterator = HexPosIterator;
-
-    fn contains_hex(&self, pos: HexPos) -> bool {
-        pos.u() >= 0 && pos.u() < self.width && pos.v() >= 0 && pos.v() < self.height
-    }
-
-    fn iter_hexes(&self) -> Self::Iterator {
-        HexPosIterator::new(*self)
-    }
-}
 
 pub struct HexGrid<H, E = (), C = ()> {
     size: HexGridSize,
@@ -84,7 +41,7 @@ impl<H, E, C> HexGrid<H, E, C> {
         mut edge_init: impl FnMut(HexPosWithEdge) -> E,
         mut corner_init: impl FnMut(HexPosWithCorner) -> C,
     ) -> Self {
-        let HexGridSize { width, height } = size;
+        let (width, height) = size.into();
         let even_row_size = 1 + (width - 1) / 2;
         let odd_row_size = width / 2;
 
@@ -234,11 +191,11 @@ impl<H, E, C> HexGrid<H, E, C> {
     }
 
     pub fn width(&self) -> HexCoord {
-        self.size.width
+        self.size.width()
     }
 
     pub fn height(&self) -> HexCoord {
-        self.size.height
+        self.size.height()
     }
 
     pub fn has_hex(&self, pos: HexPos) -> bool {
@@ -332,18 +289,16 @@ impl<H, E, C> HexGrid<H, E, C> {
     }
 
     fn edge_index(&self, pos: HexPos, edge: HexEdge) -> (usize, HexEdge) {
+        let (u, v) = pos.into();
+        let (width, height) = self.size.into();
+
         match edge {
             HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft => (self.hex_index(pos), edge),
-            HexEdge::BottomLeft if pos.u() == 0 => ((pos.v() / 2) as usize, edge),
-            HexEdge::BottomLeft if pos.v() == 0 => (
-                (pos.u() / 2 + (self.size.height + 1) / 2 - 1) as usize,
-                edge,
-            ),
-            HexEdge::Bottom if pos.v() <= 1 => (pos.u() as usize, edge),
-            HexEdge::BottomRight if pos.v() == 0 => ((pos.u() / 2) as usize, edge),
-            HexEdge::BottomRight if pos.u() == self.size.width - 1 => {
-                ((self.size.width / 2 + pos.v() / 2) as usize, edge)
-            }
+            HexEdge::BottomLeft if u == 0 => ((v / 2) as usize, edge),
+            HexEdge::BottomLeft if v == 0 => ((u / 2 + (height + 1) / 2 - 1) as usize, edge),
+            HexEdge::Bottom if v <= 1 => (u as usize, edge),
+            HexEdge::BottomRight if v == 0 => ((u / 2) as usize, edge),
+            HexEdge::BottomRight if u == width - 1 => ((width / 2 + v / 2) as usize, edge),
             HexEdge::BottomLeft | HexEdge::Bottom | HexEdge::BottomRight => {
                 let neighbor = pos.neighbor(edge);
                 (self.hex_index(neighbor), edge.opposite())
@@ -352,31 +307,29 @@ impl<H, E, C> HexGrid<H, E, C> {
     }
 
     fn corner_index(&self, pos: HexPos, corner: HexCorner) -> (usize, HexCorner) {
+        let (u, v) = pos.into();
+        let (width, height) = self.size.into();
+
         match corner {
             HexCorner::Right | HexCorner::TopRight => (self.hex_index(pos), corner),
-            HexCorner::TopLeft if pos.u() == 0 => ((pos.v() / 2) as usize, corner),
-            HexCorner::TopLeft if pos.v() == self.size.height - 1 => {
-                ((self.size.height / 2 + pos.u() / 2) as usize, corner)
-            }
+            HexCorner::TopLeft if u == 0 => ((v / 2) as usize, corner),
+            HexCorner::TopLeft if v == height - 1 => ((height / 2 + u / 2) as usize, corner),
             HexCorner::TopLeft => {
                 self.corner_index(pos.neighbor(HexEdge::TopLeft), HexCorner::Right)
             }
-            HexCorner::Left if pos.u() == 0 => ((pos.v() / 2) as usize, corner),
-            HexCorner::Left if pos.v() == 0 => {
+            HexCorner::Left if u == 0 => ((v / 2) as usize, corner),
+            HexCorner::Left if v == 0 => {
                 self.corner_index(pos.neighbor(HexEdge::TopLeft), HexCorner::BottomRight)
             }
             HexCorner::Left => {
                 self.corner_index(pos.neighbor(HexEdge::BottomLeft), HexCorner::TopRight)
             }
-            HexCorner::BottomLeft if pos.u() == 0 => ((pos.v() / 2) as usize, corner),
-            HexCorner::BottomLeft if pos.v() == 0 => (
-                ((self.size.height + 1) / 2 + pos.u() / 2 - 1) as usize,
-                corner,
-            ),
+            HexCorner::BottomLeft if u == 0 => ((v / 2) as usize, corner),
+            HexCorner::BottomLeft if v == 0 => (((height + 1) / 2 + u / 2 - 1) as usize, corner),
             HexCorner::BottomLeft => {
                 self.corner_index(pos.neighbor(HexEdge::BottomLeft), HexCorner::Right)
             }
-            HexCorner::BottomRight if pos.v() < 2 => (pos.u() as usize, corner),
+            HexCorner::BottomRight if v < 2 => (u as usize, corner),
             HexCorner::BottomRight => {
                 self.corner_index(pos.neighbor(HexEdge::Bottom), HexCorner::TopRight)
             }

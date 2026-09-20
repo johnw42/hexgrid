@@ -1,7 +1,7 @@
 use crate::{
     HexCoord,
     edge::HexEdge,
-    grid::HexGridSize,
+    grid_size::HexGridSize,
     pos::{HexPos, HexPosIterator},
 };
 use std::f32::consts::{FRAC_PI_3, PI};

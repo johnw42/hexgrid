@@ -1,6 +1,6 @@
 use crate::{
     HexCoord,
-    grid::HexGridSize,
+    grid_size::HexGridSize,
     pos::{HexPos, HexPosIterator},
 };
 

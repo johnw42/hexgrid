@@ -6,7 +6,7 @@
 //
 // 0,0   2,0   4,0
 
-use crate::grid::HexGridSize;
+use crate::grid_size::HexGridSize;
 use crate::{Cartesian, Distance, HexCoord, corner::HexCorner, edge::HexEdge};
 use std::f32::consts::{FRAC_PI_3, FRAC_PI_6};
 use std::fmt::Display;
@@ -228,14 +228,14 @@ pub trait HexPosContainer {
 }
 
 impl<'a> HexPosContainer for &'a [HexPos] {
-    type Iterator = std::iter::Cloned<std::slice::Iter<'a, HexPos>>;
+    type Iterator = std::iter::Copied<std::slice::Iter<'a, HexPos>>;
 
     fn contains_hex(&self, pos: HexPos) -> bool {
         self.contains(&pos)
     }
 
     fn iter_hexes(&self) -> Self::Iterator {
-        self.iter().cloned()
+        self.iter().copied()
     }
 }
 

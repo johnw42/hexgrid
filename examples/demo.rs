@@ -4,7 +4,8 @@ use hexgrid::{
     Cartesian, Distance, HEX_HEIGHT, HEX_WIDTH, HexCoord,
     corner::{HexCorner, HexPosWithCorner},
     edge::{HexEdge, HexPosWithEdge},
-    grid::{HexGrid, HexGridSize},
+    grid::HexGrid,
+    grid_size::HexGridSize,
     pos::{HexPos, HexPosContainer as _, NearestCorner, NearestEdge},
 };
 
