@@ -27,7 +27,7 @@ enum HexGridPerimeterIteratorData {
 }
 
 impl HexGridPerimeterIterator {
-    pub fn new(size: &HexGridSize) -> Self {
+    pub fn new(size: HexGridSize) -> Self {
         if size.width() < 3 || size.height() < 4 {
             Self(HexGridPerimeterIteratorData::Small(HexPosIterator::new(
                 size,
@@ -117,7 +117,7 @@ mod tests {
     #[test]
     fn perimeter() {
         for size in iter_valid_sizes() {
-            let grid = HexGrid::<i32>::new_with_defaults(&size);
+            let grid = HexGrid::<i32>::new_with_defaults(size);
             // TODO
             // grid.perimeter()
             //     .for_each(|pos: HexPos| assert!(grid.has_hex(pos), "pos: {:?}", pos));

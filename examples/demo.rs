@@ -31,7 +31,7 @@ impl<T> GridContent<T> {
 type DemoGrid =
     HexGrid<GridContent<HexPos>, GridContent<HexPosWithEdge>, GridContent<HexPosWithCorner>>;
 
-fn new_demo_grid(size: &HexGridSize) -> DemoGrid {
+fn new_demo_grid(size: HexGridSize) -> DemoGrid {
     DemoGrid::new(
         size,
         |pos| GridContent {
@@ -68,7 +68,7 @@ impl DemoApp {
             width: INIT_WIDTH,
             height: INIT_HEIGHT,
             grid: Some(new_demo_grid(
-                &HexGridSize::new(INIT_WIDTH, INIT_HEIGHT).unwrap(),
+                HexGridSize::new(INIT_WIDTH, INIT_HEIGHT).unwrap(),
             )),
         }
     }
@@ -95,7 +95,7 @@ impl eframe::App for DemoApp {
             {
                 self.grid = HexGridSize::new(self.width, self.height)
                     .ok()
-                    .map(|size| new_demo_grid(&size))
+                    .map(new_demo_grid)
             }
 
             if let Some(grid) = &mut self.grid {
@@ -233,19 +233,17 @@ impl<'g> egui::Widget for HexView<'g> {
         if response.clicked() {
             if let Some((hover_hex, hover_corner)) = hover_corner {
                 eprintln!(
-                    "Clicked corner {:?} of hex {:?}; index: {:?}, init_params: {:?}",
+                    "Clicked corner {:?} of hex {:?}; init_params: {:?}",
                     hover_corner,
                     hover_hex,
-                    self.grid.corner_index(hover_hex, hover_corner),
                     self.grid.corner(hover_hex, hover_corner).init_params
                 );
                 self.grid.corner_mut(hover_hex, hover_corner).toggle();
             } else if let Some((hover_hex, hover_edge)) = hover_edge {
                 eprintln!(
-                    "Clicked edge {:?} of hex {:?}; index: {:?}, init_params: {:?}",
+                    "Clicked edge {:?} of hex {:?}; init_params: {:?}",
                     hover_edge,
                     hover_hex,
-                    self.grid.edge_index(hover_hex, hover_edge),
                     self.grid.edge(hover_hex, hover_edge).init_params
                 );
                 self.grid.edge_mut(hover_hex, hover_edge).toggle();

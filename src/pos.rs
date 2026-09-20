@@ -228,7 +228,7 @@ pub struct HexPosIterator {
 }
 
 impl HexPosIterator {
-    pub fn new(size: &HexGridSize) -> Self {
+    pub fn new(size: HexGridSize) -> Self {
         Self {
             u: 0,
             v: 0,
@@ -277,7 +277,7 @@ mod tests {
                         .map(move |u| HexPos::new(u, v))
                 })
                 .collect::<HashSet<_>>();
-            let actual = HexPosIterator::new(&size).collect::<HashSet<_>>();
+            let actual = HexPosIterator::new(size).collect::<HashSet<_>>();
             assert_eq!(expected, actual);
         }
     }

@@ -114,7 +114,7 @@ pub struct HexCornerIterator {
 }
 
 impl HexCornerIterator {
-    pub fn new(size: &HexGridSize) -> Self {
+    pub fn new(size: HexGridSize) -> Self {
         let mut pos_iter = HexPosIterator::new(size);
         let pos = pos_iter.next();
         Self {
