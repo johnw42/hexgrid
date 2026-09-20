@@ -2,6 +2,8 @@ use crate::{
     HexCoord,
     pos::{HexPos, HexPosContainer, HexPosIterator},
 };
+#[cfg(test)]
+use quickcheck::Arbitrary;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HexGridSize {
@@ -38,6 +40,27 @@ impl HexGridSize {
 impl From<HexGridSize> for (HexCoord, HexCoord) {
     fn from(size: HexGridSize) -> Self {
         (size.width, size.height)
+    }
+}
+
+#[cfg(test)]
+impl Arbitrary for HexGridSize {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        loop {
+            let width = HexCoord::arbitrary(g) % 64;
+            let height = HexCoord::arbitrary(g) % 64;
+            if let Ok(size) = HexGridSize::new(width, height) {
+                return size;
+            }
+        }
+    }
+
+    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+        let (width, height) = (self.width, self.height);
+        Box::new(
+            (0..=width)
+                .flat_map(move |w| (0..=height).filter_map(move |h| HexGridSize::new(w, h).ok())),
+        )
     }
 }
 

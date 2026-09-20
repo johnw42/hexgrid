@@ -8,6 +8,7 @@
 
 use crate::grid_size::HexGridSize;
 use crate::{Cartesian, Distance, HexCoord, corner::HexCorner, edge::HexEdge};
+use std::collections::HashSet;
 use std::f32::consts::{FRAC_PI_3, FRAC_PI_6};
 use std::fmt::Display;
 
@@ -236,6 +237,18 @@ impl<'a> HexPosContainer for &'a [HexPos] {
 
     fn iter_hexes(&self) -> Self::Iterator {
         self.iter().copied()
+    }
+}
+
+impl HexPosContainer for HashSet<HexPos> {
+    type Iterator = std::collections::hash_set::IntoIter<HexPos>;
+
+    fn contains_hex(&self, pos: HexPos) -> bool {
+        self.contains(&pos)
+    }
+
+    fn iter_hexes(&self) -> Self::Iterator {
+        self.clone().into_iter()
     }
 }
 
