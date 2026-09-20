@@ -175,7 +175,7 @@ impl HexEdgeIterator {
 }
 
 impl Iterator for HexEdgeIterator {
-    type Item = (HexPos, HexEdge);
+    type Item = HexPosWithEdge;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             let pos = self.pos?;
@@ -191,7 +191,7 @@ impl Iterator for HexEdgeIterator {
                 HexEdge::BottomRight => pos.v() == 0 || pos.u() == self.width - 1,
             };
             if is_valid_edge {
-                return Some((pos, edge));
+                return Some(HexPosWithEdge::new(pos, edge));
             }
         }
     }
@@ -200,6 +200,7 @@ impl Iterator for HexEdgeIterator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
 
     #[test]
     fn all() {
@@ -245,6 +246,22 @@ mod tests {
             let ends = edge.ends();
             assert_eq!(ends[1], ends[0].rotate(1));
             assert_eq!(ends[0], ends[1].rotate(-1));
+            assert_eq!(edge, ends[0].adjacent_edges()[1]);
+            assert_eq!(edge, ends[1].adjacent_edges()[0]);
+        }
+    }
+
+    #[test]
+    fn iterator() {
+        for size in crate::iter_valid_sizes() {
+            let mut seen_edges = HashSet::new();
+            for pos in HexPosIterator::new(size) {
+                for edge in HexEdge::ALL {
+                    seen_edges.insert(HexPosWithEdge::new(pos, edge));
+                }
+            }
+            let iter_edges = HexEdgeIterator::new(size).collect::<HashSet<_>>();
+            assert_eq!(seen_edges, iter_edges);
         }
     }
 

@@ -63,6 +63,9 @@ impl HexCorner {
         Self::Right.rotate((angle / FRAC_PI_3).round() as i32)
     }
 
+    /// Returns the two edges that are adjacent to this corner.  The order is
+    /// the previous edge (clockwise) first, then the next edge
+    /// (counter-clockwise).
     pub fn adjacent_edges(self) -> [HexEdge; 2] {
         match self {
             HexCorner::Right => [HexEdge::BottomRight, HexEdge::TopRight],
@@ -127,7 +130,7 @@ impl HexCornerIterator {
 }
 
 impl Iterator for HexCornerIterator {
-    type Item = (HexPos, HexCorner);
+    type Item = HexPosWithCorner;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             let pos = self.pos?;
@@ -146,7 +149,7 @@ impl Iterator for HexCornerIterator {
                 }
             };
             if is_valid_corner {
-                return Some((pos, corner));
+                return Some(HexPosWithCorner::new(pos, corner));
             }
         }
     }
@@ -236,6 +239,7 @@ impl From<HexPosWithCorner> for (HexPos, HexCorner) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
 
     #[test]
     fn rotation() {
@@ -264,6 +268,17 @@ mod tests {
     }
 
     #[test]
+    fn adjacent_edges() {
+        for corner in HexCorner::ALL {
+            let edges = corner.adjacent_edges();
+            assert_eq!(edges[0].rotate(1), edges[1]);
+            assert_eq!(edges[1].rotate(-1), edges[0]);
+            assert_eq!(corner, edges[0].ends()[1]);
+            assert_eq!(corner, edges[1].ends()[0]);
+        }
+    }
+
+    #[test]
     fn variants() {
         for corner in HexCorner::ALL {
             let pos = HexPos::new(0, 0);
@@ -280,6 +295,20 @@ mod tests {
                     var_corner
                 );
             }
+        }
+    }
+
+    #[test]
+    fn iterator() {
+        for size in crate::iter_valid_sizes() {
+            let mut seen_corners = HashSet::new();
+            for pos in HexPosIterator::new(size) {
+                for corner in HexCorner::ALL {
+                    seen_corners.insert(HexPosWithCorner::new(pos, corner));
+                }
+            }
+            let iter_corners = HexCornerIterator::new(size).collect::<HashSet<_>>();
+            assert_eq!(seen_corners, iter_corners);
         }
     }
 }
