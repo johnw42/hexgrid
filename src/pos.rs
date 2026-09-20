@@ -6,6 +6,7 @@
 //
 // 0,0   2,0   4,0
 
+use crate::grid::HexGridSize;
 use crate::{Cartesian, Distance, HexCoord, corner::HexCorner, edge::HexEdge};
 use std::f32::consts::{FRAC_PI_3, FRAC_PI_6};
 use std::fmt::Display;
@@ -41,27 +42,22 @@ impl From<HexPos> for (HexCoord, HexCoord) {
 }
 
 impl HexPos {
-    pub fn new(u: HexCoord, v: HexCoord) -> Self {
+    pub const fn new(u: HexCoord, v: HexCoord) -> Self {
         assert!((u + v) % 2 == 0, "u + v must be even");
         HexPos(u, v)
     }
 
-    pub fn u(self) -> HexCoord {
+    pub const fn u(self) -> HexCoord {
         self.0
     }
 
-    pub fn v(self) -> HexCoord {
+    pub const fn v(self) -> HexCoord {
         self.1
     }
 
-    pub fn shift(self, du: HexCoord, dv: HexCoord) -> Self {
+    pub const fn shift(self, du: HexCoord, dv: HexCoord) -> Self {
         let HexPos(u, v) = self;
         HexPos::new(u + du, v + dv)
-    }
-
-    pub fn in_range(self, width: HexCoord, height: HexCoord) -> bool {
-        let HexPos(u, v) = self;
-        u >= 0 && u < width && v >= 0 && v < height
     }
 
     pub fn from_center((x, y): (f32, f32)) -> Self {
@@ -232,12 +228,12 @@ pub struct HexPosIterator {
 }
 
 impl HexPosIterator {
-    pub fn new(width: HexCoord, height: HexCoord) -> Self {
+    pub fn new(size: &HexGridSize) -> Self {
         Self {
             u: 0,
             v: 0,
-            width,
-            height,
+            width: size.width(),
+            height: size.height(),
         }
     }
 }
@@ -268,22 +264,21 @@ impl Iterator for HexPosIterator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::iter_valid_sizes;
     use std::collections::HashSet;
 
     #[test]
     fn hex_pos_iterator() {
-        for width in 0..9 {
-            for height in 0..9 {
-                let expected = (0..height)
-                    .flat_map(|v| {
-                        (0..width)
-                            .filter(move |&u| (u + v) % 2 == 0)
-                            .map(move |u| HexPos::new(u, v))
-                    })
-                    .collect::<HashSet<_>>();
-                let actual = HexPosIterator::new(width, height).collect::<HashSet<_>>();
-                assert_eq!(expected, actual);
-            }
+        for size in iter_valid_sizes() {
+            let expected = (0..size.height())
+                .flat_map(|v| {
+                    (0..size.width())
+                        .filter(move |&u| (u + v) % 2 == 0)
+                        .map(move |u| HexPos::new(u, v))
+                })
+                .collect::<HashSet<_>>();
+            let actual = HexPosIterator::new(&size).collect::<HashSet<_>>();
+            assert_eq!(expected, actual);
         }
     }
 }

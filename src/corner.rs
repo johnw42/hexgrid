@@ -1,6 +1,7 @@
 use crate::{
     HexCoord,
     edge::HexEdge,
+    grid::HexGridSize,
     pos::{HexPos, HexPosIterator},
 };
 use std::f32::consts::{FRAC_PI_3, PI};
@@ -113,11 +114,11 @@ pub struct HexCornerIterator {
 }
 
 impl HexCornerIterator {
-    pub fn new(width: HexCoord, height: HexCoord) -> Self {
-        let mut pos_iter = HexPosIterator::new(width, height);
+    pub fn new(size: &HexGridSize) -> Self {
+        let mut pos_iter = HexPosIterator::new(size);
         let pos = pos_iter.next();
         Self {
-            width,
+            width: size.width(),
             corner: HexCorner::TopRight,
             pos,
             pos_iter,
@@ -185,6 +186,14 @@ impl HexPosWithCorner {
                 corner: PrimaryHexCorner::TopRight,
             },
         }
+    }
+
+    pub fn pos(self) -> HexPos {
+        self.pos
+    }
+
+    pub fn corner(self) -> HexCorner {
+        self.corner.into()
     }
 
     pub fn variants(self) -> [(HexPos, HexCorner); 3] {

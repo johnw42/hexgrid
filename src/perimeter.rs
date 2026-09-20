@@ -1,5 +1,6 @@
 use crate::{
     HexCoord,
+    grid::HexGridSize,
     pos::{HexPos, HexPosIterator},
 };
 
@@ -26,17 +27,17 @@ enum HexGridPerimeterIteratorData {
 }
 
 impl HexGridPerimeterIterator {
-    pub fn new(width: HexCoord, height: HexCoord) -> Self {
-        if width < 3 || height < 4 {
+    pub fn new(size: &HexGridSize) -> Self {
+        if size.width() < 3 || size.height() < 4 {
             Self(HexGridPerimeterIteratorData::Small(HexPosIterator::new(
-                width, height,
+                size,
             )))
         } else {
             Self(HexGridPerimeterIteratorData::Large {
                 u: 0,
                 v: 0,
-                width,
-                height,
+                width: size.width(),
+                height: size.height(),
                 traveral: PerimeterTraveral::Right,
             })
         }
@@ -110,14 +111,13 @@ impl Iterator for HexGridPerimeterIterator {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::{grid::HexGrid, iter_valid_sizes};
     use std::collections::HashSet;
 
     #[test]
     fn perimeter() {
         for size in iter_valid_sizes() {
-            let grid = HexGrid::<i32>::new_with_defaults(size);
+            let grid = HexGrid::<i32>::new_with_defaults(&size);
             // TODO
             // grid.perimeter()
             //     .for_each(|pos: HexPos| assert!(grid.has_hex(pos), "pos: {:?}", pos));

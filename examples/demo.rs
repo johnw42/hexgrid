@@ -2,8 +2,8 @@ use eframe::egui;
 use egui::Pos2;
 use hexgrid::{
     Cartesian, Distance, HEX_HEIGHT, HEX_WIDTH, HexCoord,
-    corner::HexCorner,
-    edge::HexEdge,
+    corner::{HexCorner, HexPosWithCorner},
+    edge::{HexEdge, HexPosWithEdge},
     grid::{HexGrid, HexGridSize},
     pos::{HexPos, NearestCorner, NearestEdge},
 };
@@ -29,22 +29,22 @@ impl<T> GridContent<T> {
 }
 
 type DemoGrid =
-    HexGrid<GridContent<HexPos>, GridContent<(HexPos, HexEdge)>, GridContent<(HexPos, HexCorner)>>;
+    HexGrid<GridContent<HexPos>, GridContent<HexPosWithEdge>, GridContent<HexPosWithCorner>>;
 
-fn new_demo_grid(size: HexGridSize) -> DemoGrid {
+fn new_demo_grid(size: &HexGridSize) -> DemoGrid {
     DemoGrid::new(
         size,
         |pos| GridContent {
             init_params: pos,
             is_active: false,
         },
-        |pos, edge| GridContent {
-            init_params: (pos, edge),
-            is_active: matches!(edge, HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft),
+        |edge| GridContent {
+            init_params: edge,
+            is_active: size.contains(edge.pos()),
         },
-        |pos, corner| GridContent {
-            init_params: (pos, corner),
-            is_active: matches!(corner, HexCorner::Right | HexCorner::TopRight),
+        |corner| GridContent {
+            init_params: corner,
+            is_active: size.contains(corner.pos()),
         },
     )
 }
@@ -68,7 +68,7 @@ impl DemoApp {
             width: INIT_WIDTH,
             height: INIT_HEIGHT,
             grid: Some(new_demo_grid(
-                HexGridSize::new(INIT_WIDTH, INIT_HEIGHT).unwrap(),
+                &HexGridSize::new(INIT_WIDTH, INIT_HEIGHT).unwrap(),
             )),
         }
     }
@@ -95,7 +95,7 @@ impl eframe::App for DemoApp {
             {
                 self.grid = HexGridSize::new(self.width, self.height)
                     .ok()
-                    .map(|size| new_demo_grid(size))
+                    .map(|size| new_demo_grid(&size))
             }
 
             if let Some(grid) = &mut self.grid {

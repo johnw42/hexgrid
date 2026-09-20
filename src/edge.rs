@@ -1,6 +1,7 @@
 use crate::{
     HexCoord,
     corner::HexCorner,
+    grid::HexGridSize,
     pos::{HexPos, HexPosIterator},
 };
 
@@ -119,6 +120,14 @@ impl HexPosWithEdge {
         }
     }
 
+    pub fn pos(self) -> HexPos {
+        self.pos
+    }
+
+    pub fn edge(self) -> HexEdge {
+        self.edge.into()
+    }
+
     pub fn variants(self) -> [(HexPos, HexEdge); 2] {
         let Self { pos, edge } = self;
         [(pos, edge.into()), (pos.neighbor(edge), edge.opposite())]
@@ -153,11 +162,11 @@ pub struct HexEdgeIterator {
 }
 
 impl HexEdgeIterator {
-    pub fn new(width: HexCoord, height: HexCoord) -> Self {
-        let mut pos_iter = HexPosIterator::new(width, height);
+    pub fn new(size: &HexGridSize) -> Self {
+        let mut pos_iter = HexPosIterator::new(size);
         let pos = pos_iter.next();
         Self {
-            width,
+            width: size.width(),
             edge: HexEdge::TopRight,
             pos,
             pos_iter,
