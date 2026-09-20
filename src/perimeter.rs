@@ -4,84 +4,73 @@ use crate::{
 };
 use std::{collections::HashSet, hash::Hash};
 
-// pub struct HexPerimeterIterator<'c, C: HexPosContainer> {
-//     container: &'c C,
-//     hex_iter: C::Iterator,
-//     last_pos: Option<HexPos>,
-//     next_edge: HexEdge,
-//     hexes_seen: HashSet<HexPos>,
-// }
+pub struct HexPerimeterIterator<'c, C: HexPosContainer> {
+    container: &'c C,
+    hex_iter: C::Iterator,
+    edges_seen: HashSet<(HexPos, HexEdge)>,
+    state: HexPerimeterIteratorState,
+}
 
-// impl<'c, C> HexPerimeterIterator<'c, C>
-// where
-//     C: HexPosContainer,
-// {
-//     pub fn new(container: &'c C) -> Self {
-//         Self {
-//             container,
-//             hex_iter: container.iter_hexes(),
-//             last_pos: None,
-//             next_edge: HexEdge::TopRight, // arbitrary, not used
-//             hexes_seen: HashSet::new(),
-//         }
-//     }
+enum HexPerimeterIteratorState {
+    FindStartingHex,
+    TraverseBoundary(HexPos, HexEdge),
+}
 
-//     fn is_exterior_edge(&self, pos: HexPosWithEdge) -> bool {
-//         !self.container.contains_hex(pos.pos().neighbor(pos.edge()))
-//     }
+impl<'c, C> HexPerimeterIterator<'c, C>
+where
+    C: HexPosContainer,
+{
+    pub fn new(container: &'c C) -> Self {
+        Self {
+            container,
+            hex_iter: container.iter_hexes(),
+            edges_seen: HashSet::new(),
+            state: HexPerimeterIteratorState::FindStartingHex,
+        }
+    }
 
-//     fn exterior_edge(&self, pos: HexPos) -> Option<HexEdge> {
-//         for edge in HexEdge::ALL {
-//             let neighbor_pos = pos.neighbor(edge);
-//             if !self.container.contains_hex(neighbor_pos) {
-//                 return Some(edge);
-//             }
-//         }
-//         None
-//     }
-// }
+    fn is_exterior_edge(&self, pos: HexPos, edge: HexEdge) -> bool {
+        !self.container.contains_hex(pos.neighbor(edge))
+    }
+}
 
-// impl<'c, C> Iterator for HexPerimeterIterator<'c, C>
-// where
-//     C: HexPosContainer,
-// {
-//     type Item = HexPosWithEdge;
+impl<'c, C> Iterator for HexPerimeterIterator<'c, C>
+where
+    C: HexPosContainer,
+{
+    type Item = (HexPos, HexEdge);
 
-//     fn next(&mut self) -> Option<Self::Item> {
-//         while self.last_pos.is_none() {
-//             self.last_pos = self.hex_iter.next();
-//             if let Some(pos) = self.last_pos
-//                 && let Some(edge) = self.exterior_edge(pos)
-//             {
-//                 if self.hexes_seen.contains(&pos) {
-//                     self.last_pos = None;
-//                     continue;
-//                 }
-//                 self.next_edge = edge;
-//                 break;
-//             }
-//         }
-//         if let Some(pos) = self.last_pos {
-//             let result = Some(HexPosWithEdge::new(pos, self.next_edge));
-//             self.hexes_seen.insert(pos);
-//             let starting_edge = self.next_edge;
-//             loop {
-//                 self.next_edge = self.next_edge.rotate(1);
-//                 debug_assert!(
-//                     self.next_edge != starting_edge,
-//                     "No exterior edge found for pos: {:?}",
-//                     pos
-//                 );
-//                 if self.is_exterior_edge(HexPosWithEdge::new(pos, self.next_edge)) {
-//                     break;
-//                 }
-//             }
-//             result
-//         } else {
-//             None
-//         }
-//     }
-// }
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.state {
+            HexPerimeterIteratorState::FindStartingHex => loop {
+                let starting_hex = self.hex_iter.next()?;
+                let exterior_edge = HexEdge::ALL
+                    .into_iter()
+                    .find(|&edge| self.is_exterior_edge(starting_hex, edge));
+                if let Some(starting_edge) = exterior_edge
+                    && self.edges_seen.insert((starting_hex, starting_edge))
+                {
+                    self.state =
+                        HexPerimeterIteratorState::TraverseBoundary(starting_hex, starting_edge);
+                    return Some((starting_hex, starting_edge));
+                }
+            },
+            HexPerimeterIteratorState::TraverseBoundary(mut hex, mut edge) => {
+                edge = edge.rotate(1);
+                if !self.is_exterior_edge(hex, edge) {
+                    hex = hex.neighbor(edge);
+                    edge = edge.rotate(-2);
+                }
+                if self.edges_seen.insert((hex, edge)) {
+                    Some((hex, edge))
+                } else {
+                    self.state = HexPerimeterIteratorState::FindStartingHex;
+                    self.next()
+                }
+            }
+        }
+    }
+}
 
 pub fn perimeter_edges<C: HexPosContainer>(container: &C) -> Vec<(HexPos, HexEdge)> {
     let is_exterior_edge = |pos: HexPos, edge: HexEdge| !container.contains_hex(pos.neighbor(edge));
@@ -124,20 +113,17 @@ pub fn perimeter_edges<C: HexPosContainer>(container: &C) -> Vec<(HexPos, HexEdg
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::iter_valid_sizes;
     // use crate::{grid::HexGrid, iter_valid_sizes};
     // use std::collections::HashSet;
 
-    // #[test]
-    // fn perimeter() {
-    //     for size in iter_valid_sizes() {
-    //         let grid = HexGrid::<i32>::new_with_defaults(size);
-    //         // TODO
-    //         // grid.perimeter()
-    //         //     .for_each(|pos: HexPos| assert!(grid.has_hex(pos), "pos: {:?}", pos));
-    //         assert_eq!(
-    //             grid.perimeter().count(),
-    //             grid.perimeter().collect::<HashSet<_>>().len(),
-    //         );
-    //     }
-    // }
+    #[test]
+    fn perimeter() {
+        for size in iter_valid_sizes() {
+            let expected_perimeter_edges = perimeter_edges(&size);
+            let actual_perimeter_edges = HexPerimeterIterator::new(&size).collect::<Vec<_>>();
+            assert_eq!(expected_perimeter_edges, actual_perimeter_edges);
+        }
+    }
 }
