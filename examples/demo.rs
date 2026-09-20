@@ -4,7 +4,7 @@ use hexgrid::{
     Cartesian, Distance, HEX_HEIGHT, HEX_WIDTH, HexCoord,
     corner::{HexCorner, HexPosWithCorner},
     edge::{HexEdge, HexPosWithEdge},
-    grid::{self, HexGrid},
+    grid::HexGrid,
     grid_size::HexGridSize,
     perimeter::HexPerimeterIterator,
     pos::{HexPos, HexPosContainer as _, NearestCorner, NearestEdge},
@@ -26,6 +26,7 @@ enum Selection {
     PerimeterFromOrigin,
 }
 
+#[derive(Debug)]
 struct GridContent<T> {
     init_params: T,
     is_active: bool,

@@ -4,6 +4,8 @@ use crate::{
 };
 #[cfg(test)]
 use quickcheck::Arbitrary;
+#[cfg(test)]
+use std::collections;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HexGridSize {
@@ -61,10 +63,21 @@ impl Arbitrary for HexGridSize {
     }
 
     fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
-        let (width, height) = (self.width, self.height);
+        let Self { width, height } = *self;
         Box::new(
-            (0..=width)
-                .flat_map(move |w| (0..=height).filter_map(move |h| HexGridSize::new(w, h).ok())),
+            (1..=(width + height))
+                .flat_map(move |shrink_amount| {
+                    if shrink_amount % 2 == 0 {
+                        vec![(width - shrink_amount / 2, height - shrink_amount / 2)].into_iter()
+                    } else {
+                        vec![
+                            (width - shrink_amount / 2, height - (shrink_amount + 1) / 2),
+                            (width - (shrink_amount + 1) / 2, height - shrink_amount / 2),
+                        ]
+                        .into_iter()
+                    }
+                })
+                .filter_map(|(w, h)| HexGridSize::new(w, h).ok()),
         )
     }
 }
@@ -78,5 +91,34 @@ impl HexPosContainer for HexGridSize {
 
     fn iter_hexes(&self) -> Self::Iterator {
         HexPosIterator::new(*self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shrink() {
+        let size = HexGridSize::new(4, 4).unwrap();
+        let shrunk_sizes: Vec<_> = size.shrink().collect();
+        let expected_sizes: Vec<_> = [
+            (4, 3),
+            (3, 4),
+            (3, 3),
+            (3, 2),
+            (2, 3),
+            (2, 2),
+            (2, 1),
+            (1, 2),
+            (1, 1),
+            (1, 0),
+            (0, 1),
+            (0, 0),
+        ]
+        .into_iter()
+        .filter_map(|(w, h)| HexGridSize::new(w, h).ok())
+        .collect();
+        assert_eq!(shrunk_sizes, expected_sizes);
     }
 }

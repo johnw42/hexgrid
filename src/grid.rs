@@ -3,7 +3,7 @@
 use crate::{
     HexCoord,
     corner::{HexCorner, HexCornerIterator, HexPosWithCorner},
-    edge::{HexEdge, HexEdgeIterator, HexPosWithEdge},
+    edge::{HexEdge, HexEdgeIterator, HexPosWithEdge, PrimaryHexEdge},
     grid_size::HexGridSize,
     pos::{HexPos, HexPosContainer, HexPosIterator},
 };
@@ -288,19 +288,27 @@ impl<H, E, C> HexGrid<H, E, C> {
     }
 
     fn edge_index(&self, pos: HexPos, edge: HexEdge) -> (usize, HexEdge) {
+        let (pos, edge): (HexPos, PrimaryHexEdge) = HexPosWithEdge::new(pos, edge).into();
         let (u, v) = pos.into();
         let (width, height) = self.size.into();
 
-        match edge {
-            HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft => (self.hex_index(pos), edge),
-            HexEdge::BottomLeft if u == 0 => ((v / 2) as usize, edge),
-            HexEdge::BottomLeft if v == 0 => ((u / 2 + (height + 1) / 2 - 1) as usize, edge),
-            HexEdge::Bottom if v <= 1 => (u as usize, edge),
-            HexEdge::BottomRight if v == 0 => ((u / 2) as usize, edge),
-            HexEdge::BottomRight if u == width - 1 => ((width / 2 + v / 2) as usize, edge),
-            HexEdge::BottomLeft | HexEdge::Bottom | HexEdge::BottomRight => {
-                let neighbor = pos.neighbor(edge);
-                (self.hex_index(neighbor), edge.opposite())
+        if self.has_hex(pos) {
+            (self.hex_index(pos), edge.into())
+        } else {
+            match edge {
+                PrimaryHexEdge::TopRight if u == -1 => {
+                    (((v + 1) / 2) as usize, HexEdge::BottomLeft)
+                }
+                PrimaryHexEdge::TopRight if v == -1 => (
+                    ((u + 1) / 2 + (height + 1) / 2 - 1) as usize,
+                    HexEdge::BottomLeft,
+                ),
+                PrimaryHexEdge::Top if v < 0 => (u as usize, HexEdge::Bottom),
+                PrimaryHexEdge::TopLeft if v == -1 => ((u / 2) as usize, HexEdge::BottomRight),
+                PrimaryHexEdge::TopLeft if u == width => {
+                    ((width / 2 + (v + 1) / 2) as usize, HexEdge::BottomRight)
+                }
+                _ => unreachable!(),
             }
         }
     }
@@ -441,6 +449,15 @@ mod tests {
         assert_eq!(left_corners_size, grid.left_corners.len());
         assert_eq!(bottom_left_corners_size, grid.bottom_left_corners.len());
         assert_eq!(bottom_right_corners_size, grid.bottom_right_corners.len());
+    }
+
+    #[test]
+    fn delete_me() {
+        // TODO
+        assert_eq!(
+            HexPosWithEdge::new(HexPos::new(2, 0), HexEdge::Bottom),
+            HexPosWithEdge::new(HexPos::new(2, -2), HexEdge::Top)
+        );
     }
 
     #[quickcheck]
