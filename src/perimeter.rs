@@ -152,48 +152,6 @@ where
     }
 }
 
-pub fn perimeter_edges<C: HexPosContainer>(container: &C) -> Vec<(HexPos, HexEdge)> {
-    let is_exterior_edge = |pos: HexPos, edge: HexEdge| !container.contains_hex(pos.neighbor(edge));
-
-    let mut edges_seen = HashSet::new();
-    let mut result = Vec::new();
-
-    for starting_hex in container.iter_hexes() {
-        let exterior_edge = HexEdge::ALL
-            .into_iter()
-            .find(|&edge| is_exterior_edge(starting_hex, edge));
-
-        let Some(starting_edge) = exterior_edge else {
-            continue;
-        };
-        if !edges_seen.insert((starting_hex, starting_edge)) {
-            continue;
-        }
-
-        // We have a new starting point on the perimeter
-        let mut edge = starting_edge;
-        let mut hex = starting_hex;
-        loop {
-            result.push((hex, edge));
-            debug_assert!(
-                result.len() <= 6 * container.iter_hexes().count(),
-                "Too many edges in perimeter, possible infinite loop"
-            );
-            edges_seen.insert((hex, edge));
-            edge = edge.rotate(1);
-            if !is_exterior_edge(hex, edge) {
-                hex = hex.neighbor(edge);
-                edge = edge.rotate(-2);
-            }
-            if hex == starting_hex && edge == starting_edge {
-                break;
-            }
-        }
-    }
-
-    result
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,29 +159,73 @@ mod tests {
     use quickcheck::Arbitrary;
     use quickcheck_macros::quickcheck;
 
+    // Reference implementation.
+    fn perimeter_edges<C: HexPosContainer>(container: &C) -> Vec<(HexPos, HexEdge)> {
+        let is_exterior_edge =
+            |pos: HexPos, edge: HexEdge| !container.contains_hex(pos.neighbor(edge));
+
+        let mut edges_seen = HashSet::new();
+        let mut result = Vec::new();
+
+        for starting_hex in container.iter_hexes() {
+            let exterior_edge = HexEdge::ALL
+                .into_iter()
+                .find(|&edge| is_exterior_edge(starting_hex, edge));
+
+            let Some(starting_edge) = exterior_edge else {
+                continue;
+            };
+            if !edges_seen.insert((starting_hex, starting_edge)) {
+                continue;
+            }
+
+            // We have a new starting point on the perimeter
+            let mut edge = starting_edge;
+            let mut hex = starting_hex;
+            loop {
+                result.push((hex, edge));
+                debug_assert!(
+                    result.len() <= 6 * container.iter_hexes().count(),
+                    "Too many edges in perimeter, possible infinite loop"
+                );
+                edges_seen.insert((hex, edge));
+                edge = edge.rotate(1);
+                if !is_exterior_edge(hex, edge) {
+                    hex = hex.neighbor(edge);
+                    edge = edge.rotate(-2);
+                }
+                if hex == starting_hex && edge == starting_edge {
+                    break;
+                }
+            }
+        }
+
+        result
+    }
+
     #[derive(Debug, Clone)]
     struct TestHexPosContainer {
-        set: HashSet<HexPos>,
+        hexes: HashSet<HexPos>,
         size: HexGridSize,
     }
 
     impl Arbitrary for TestHexPosContainer {
         fn arbitrary(g: &mut quickcheck::Gen) -> Self {
             let size = HexGridSize::arbitrary(g);
-            let mut set = HashSet::new();
+            let mut hexes = HashSet::new();
             for pos in HexGrid::<()>::new_with_defaults(size).iter_hexes() {
                 if bool::arbitrary(g) {
-                    set.insert(pos);
+                    hexes.insert(pos);
                 }
             }
-            TestHexPosContainer { set, size }
+            TestHexPosContainer { hexes, size }
         }
 
         fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
-            let vec = self.set.clone();
+            let vec = self.hexes.clone();
             Box::new(self.size.shrink().map(move |size| {
                 TestHexPosContainer {
-                    set: vec
+                    hexes: vec
                         .iter()
                         .filter(|&&pos| size.contains_hex(pos))
                         .copied()
@@ -234,10 +236,64 @@ mod tests {
         }
     }
 
+    #[derive(Debug, Clone)]
+    struct ContiguousHexPosContainer {
+        hexes: Vec<HexPos>,
+    }
+
+    impl ContiguousHexPosContainer {
+        fn fill(&mut self, g: &mut quickcheck::Gen, size: HexGridSize) {
+            let last = *self.hexes.last().unwrap();
+            let neighbors = HexEdge::ALL
+                .into_iter()
+                .map(|edge| last.neighbor(edge))
+                .filter(|pos| size.contains_hex(*pos))
+                .filter(|pos| !self.hexes.contains(pos))
+                .collect::<Vec<_>>();
+            if neighbors.is_empty() {
+                return;
+            }
+            if let Some(next) = g.choose(&neighbors) {
+                self.hexes.push(*next);
+            }
+        }
+    }
+
+    impl Arbitrary for ContiguousHexPosContainer {
+        fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+            let mut result = ContiguousHexPosContainer { hexes: Vec::new() };
+            let size = HexGridSize::arbitrary(g);
+            result.hexes.push(HexPos::new(0, 0));
+            result.fill(g, size);
+            result
+        }
+
+        fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+            let mut items = Vec::new();
+            let mut hexes = self.hexes.clone();
+            while hexes.len() > 2 {
+                hexes.pop();
+                items.push(ContiguousHexPosContainer {
+                    hexes: hexes.clone(),
+                });
+            }
+            Box::new(items.into_iter())
+        }
+    }
+
     #[quickcheck]
     fn perimeter(arb: TestHexPosContainer) {
-        let expected_perimeter_edges = perimeter_edges(&arb.set);
-        let actual_perimeter_edges = HexPerimeterIterator::new(&arb.set).collect::<Vec<_>>();
+        let expected_perimeter_edges = perimeter_edges(&arb.hexes);
+        let actual_perimeter_edges = HexPerimeterIterator::new(&arb.hexes).collect::<Vec<_>>();
+        assert_eq!(expected_perimeter_edges, actual_perimeter_edges);
+    }
+
+    #[quickcheck]
+    fn perimeter_from(arb: ContiguousHexPosContainer) {
+        let expected_perimeter_edges = perimeter_edges(&arb.hexes.as_slice());
+        let actual_perimeter_edges =
+            HexPerimeterIterator::new_from(HexPos::new(0, 0), &arb.hexes.as_slice())
+                .collect::<Vec<_>>();
         assert_eq!(expected_perimeter_edges, actual_perimeter_edges);
     }
 }
