@@ -5,7 +5,7 @@ use hexgrid::{
     corner::{HexCorner, HexPosWithCorner},
     edge::{HexEdge, HexPosWithEdge},
     grid::{HexGrid, HexGridSize},
-    pos::{HexPos, NearestCorner, NearestEdge},
+    pos::{HexPos, HexPosContainer as _, NearestCorner, NearestEdge},
 };
 
 fn main() {
@@ -40,11 +40,11 @@ fn new_demo_grid(size: HexGridSize) -> DemoGrid {
         },
         |edge| GridContent {
             init_params: edge,
-            is_active: size.contains(edge.pos()),
+            is_active: size.contains_hex(edge.pos()),
         },
         |corner| GridContent {
             init_params: corner,
-            is_active: size.contains(corner.pos()),
+            is_active: size.contains_hex(corner.pos()),
         },
     )
 }
@@ -168,7 +168,7 @@ impl<'g> egui::Widget for HexView<'g> {
         //     }
         // }
 
-        for (i, pos) in self.grid.hex_range().enumerate() {
+        for (i, pos) in self.grid.iter_hexes().enumerate() {
             painter.add(egui::Shape::convex_polygon(
                 HexCorner::ALL
                     .into_iter()
@@ -191,7 +191,7 @@ impl<'g> egui::Widget for HexView<'g> {
                 egui::Color32::WHITE,
             );
         }
-        for pos in self.grid.hex_range() {
+        for pos in self.grid.iter_hexes() {
             for edge in HexEdge::ALL {
                 if self.grid.edge(pos, edge).is_active {
                     paint_edge_line(pos, edge, 5.0, egui::Color32::WHITE);

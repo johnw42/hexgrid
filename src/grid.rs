@@ -5,7 +5,7 @@ use crate::{
     corner::{HexCorner, HexCornerIterator, HexPosWithCorner},
     edge::{HexEdge, HexEdgeIterator, HexPosWithEdge},
     perimeter::HexGridPerimeterIterator,
-    pos::{HexPos, HexPosIterator},
+    pos::{HexPos, HexPosContainer, HexPosIterator},
 };
 use std::{
     cell::{Ref, RefCell, RefMut},
@@ -43,9 +43,17 @@ impl HexGridSize {
     pub const fn height(&self) -> HexCoord {
         self.height
     }
+}
 
-    pub const fn contains(&self, pos: HexPos) -> bool {
+impl HexPosContainer for HexGridSize {
+    type Iterator = HexPosIterator;
+
+    fn contains_hex(&self, pos: HexPos) -> bool {
         pos.u() >= 0 && pos.u() < self.width && pos.v() >= 0 && pos.v() < self.height
+    }
+
+    fn iter_hexes(&self) -> Self::Iterator {
+        HexPosIterator::new(*self)
     }
 }
 
@@ -97,7 +105,7 @@ impl<H, E, C> HexGrid<H, E, C> {
         if width > 0 && height > 0 {
             grid.hexes
                 .reserve_exact(grid.unchecked_hex_index(HexPos::new(height % 2, height)));
-            for pos in grid.hex_range() {
+            for pos in grid.iter_hexes() {
                 let hex = Hex {
                     data: hex_init(pos),
                     edges: [
@@ -234,18 +242,14 @@ impl<H, E, C> HexGrid<H, E, C> {
     }
 
     pub fn has_hex(&self, pos: HexPos) -> bool {
-        self.size.contains(pos)
+        self.size.contains_hex(pos)
     }
 
-    pub fn hex_range(&self) -> HexPosIterator {
-        HexPosIterator::new(self.size)
-    }
-
-    pub fn edge_range(&self) -> HexEdgeIterator {
+    pub fn iter_edges(&self) -> HexEdgeIterator {
         HexEdgeIterator::new(self.size)
     }
 
-    pub fn corner_range(&self) -> HexCornerIterator {
+    pub fn iter_corners(&self) -> HexCornerIterator {
         HexCornerIterator::new(self.size)
     }
 
@@ -395,6 +399,18 @@ impl<H, E, C> Default for HexGrid<H, E, C> {
     }
 }
 
+impl<H, E, C> HexPosContainer for HexGrid<H, E, C> {
+    type Iterator = HexPosIterator;
+
+    fn contains_hex(&self, pos: HexPos) -> bool {
+        self.size.contains_hex(pos)
+    }
+
+    fn iter_hexes(&self) -> Self::Iterator {
+        self.size.iter_hexes()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -405,7 +421,7 @@ mod tests {
     fn index() {
         for size in iter_valid_sizes() {
             let grid = HexGrid::<i32>::new_with_defaults(size);
-            for (i, pos) in grid.hex_range().enumerate() {
+            for (i, pos) in grid.iter_hexes().enumerate() {
                 assert_eq!(
                     grid.hex_index(pos),
                     i,
@@ -432,7 +448,7 @@ mod tests {
             let mut bottom_left_corners_size = 0;
             let mut bottom_right_corners_size = 0;
 
-            for pos in grid.hex_range() {
+            for pos in grid.iter_hexes() {
                 let index = grid.hex_index(pos);
                 hex_grid_size = hex_grid_size.max(index + 1);
 
@@ -488,7 +504,7 @@ mod tests {
         for size in iter_valid_sizes() {
             eprintln!("size: {:?}", size);
             let grid = HexGrid::new(size, |_| (), |edge| edge, |_| ());
-            for pos in grid.hex_range() {
+            for pos in grid.iter_hexes() {
                 for edge in HexEdge::ALL {
                     assert_eq!(
                         HexPosWithEdge::new(pos, edge),
@@ -507,7 +523,7 @@ mod tests {
         for size in iter_valid_sizes() {
             eprintln!("size: {:?}", size);
             let grid = HexGrid::new(size, |_| (), |edge| (), |corner| corner);
-            for pos in grid.hex_range() {
+            for pos in grid.iter_hexes() {
                 for corner in HexCorner::ALL {
                     assert_eq!(
                         HexPosWithCorner::new(pos, corner),

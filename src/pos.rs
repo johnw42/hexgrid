@@ -220,6 +220,25 @@ impl HexPos {
     }
 }
 
+pub trait HexPosContainer {
+    type Iterator: Iterator<Item = HexPos>;
+
+    fn contains_hex(&self, pos: HexPos) -> bool;
+    fn iter_hexes(&self) -> Self::Iterator;
+}
+
+impl<'a> HexPosContainer for &'a [HexPos] {
+    type Iterator = std::iter::Cloned<std::slice::Iter<'a, HexPos>>;
+
+    fn contains_hex(&self, pos: HexPos) -> bool {
+        self.contains(&pos)
+    }
+
+    fn iter_hexes(&self) -> Self::Iterator {
+        self.iter().cloned()
+    }
+}
+
 pub struct HexPosIterator {
     u: HexCoord,
     v: HexCoord,
