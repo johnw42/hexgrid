@@ -222,6 +222,12 @@ impl From<(HexPos, HexCorner)> for HexPosWithCorner {
     }
 }
 
+impl From<(HexPos, PrimaryHexCorner)> for HexPosWithCorner {
+    fn from((pos, corner): (HexPos, PrimaryHexCorner)) -> Self {
+        Self { pos, corner }
+    }
+}
+
 impl From<HexPosWithCorner> for (HexPos, PrimaryHexCorner) {
     fn from(pos_with_corner: HexPosWithCorner) -> Self {
         let HexPosWithCorner { pos, corner } = pos_with_corner;

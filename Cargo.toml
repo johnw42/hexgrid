@@ -3,10 +3,8 @@ name = "hexgrid"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
-quickcheck = "1.1.0"
-quickcheck_macros = "1.2.0"
-
 [dev-dependencies]
 eframe = "0.36.2"
 egui = "0.36.2"
+quickcheck = "1.1.0"
+quickcheck_macros = "1.2.0"

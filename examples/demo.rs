@@ -1,7 +1,7 @@
 use eframe::egui;
 use egui::Pos2;
 use hexgrid::{
-    Cartesian, Distance, HEX_HEIGHT, HEX_WIDTH, HexCoord,
+    Cartesian, Distance, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord,
     corner::{HexCorner, HexPosWithCorner},
     edge::{HexEdge, HexPosWithEdge},
     grid::HexGrid,
@@ -220,8 +220,8 @@ impl<'g> egui::Widget for HexView<'g> {
 
         let rect_offset = rect.center().to_vec2()
             - egui::vec2(
-                (grid.width() - 1) as Distance * HEX_WIDTH,
-                (1 - grid.height()) as Distance * HEX_HEIGHT,
+                (grid.width() - 1) as Distance * HEX_HORIZONTAL_SPACING,
+                (1 - grid.height()) as Distance * HEX_VERTICAL_SPACING,
             ) * (scale / 2.0);
         let widget_to_hex = |pos: Pos2| -> Cartesian {
             let egui::Pos2 { x, y } = (pos - rect_offset) / scale;
@@ -334,6 +334,10 @@ impl<'g> egui::Widget for HexView<'g> {
                     hover_hex,
                     grid.corner(hover_hex, hover_corner).init_params
                 );
+                // eprintln!(
+                //     "corner_index: {:?}",
+                //     grid.corner_index(hover_hex, hover_corner)
+                // );
                 grid.corner_mut(hover_hex, hover_corner).toggle();
             } else if let Some((hover_hex, hover_edge)) = hover_edge {
                 eprintln!(

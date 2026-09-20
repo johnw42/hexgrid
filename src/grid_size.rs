@@ -4,8 +4,6 @@ use crate::{
 };
 #[cfg(test)]
 use quickcheck::Arbitrary;
-#[cfg(test)]
-use std::collections;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HexGridSize {

@@ -2,12 +2,13 @@
 
 use crate::{
     HexCoord,
-    corner::{HexCorner, HexCornerIterator, HexPosWithCorner},
+    corner::{HexCorner, HexCornerIterator, HexPosWithCorner, PrimaryHexCorner},
     edge::{HexEdge, HexEdgeIterator, HexPosWithEdge, PrimaryHexEdge},
     grid_size::HexGridSize,
     pos::{HexPos, HexPosContainer, HexPosIterator},
 };
 use std::{
+    assert_matches,
     cell::{Ref, RefCell, RefMut},
     collections::HashMap,
     sync::Arc,
@@ -21,10 +22,21 @@ pub struct HexGrid<H, E = (), C = ()> {
     bottom_left_edges: Vec<E>,
     bottom_edges: Vec<E>,
     bottom_right_edges: Vec<E>,
-    top_left_corners: Vec<C>,
-    left_corners: Vec<C>,
-    bottom_left_corners: Vec<C>,
-    bottom_right_corners: Vec<C>,
+    // top_left_corners: Vec<C>,
+    // left_corners: Vec<C>,
+    // bottom_left_corners: Vec<C>,
+    // bottom_right_corners: Vec<C>,
+    bottom_edge_corners: Vec<C>,
+    top_edge_corners: Vec<C>,
+    left_edge_corners: Vec<C>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CornerIndex {
+    Hex(usize, PrimaryHexCorner),
+    Bottom(usize),
+    Top(usize),
+    Left(usize),
 }
 
 struct Hex<H, E, C> {
@@ -52,10 +64,13 @@ impl<H, E, C> HexGrid<H, E, C> {
             bottom_left_edges: Vec::new(),
             bottom_edges: Vec::new(),
             bottom_right_edges: Vec::new(),
-            top_left_corners: Vec::new(),
-            left_corners: Vec::new(),
-            bottom_left_corners: Vec::new(),
-            bottom_right_corners: Vec::new(),
+            // top_left_corners: Vec::new(),
+            // left_corners: Vec::new(),
+            // bottom_left_corners: Vec::new(),
+            // bottom_right_corners: Vec::new(),
+            bottom_edge_corners: Vec::new(),
+            top_edge_corners: Vec::new(),
+            left_edge_corners: Vec::new(),
         };
 
         if width > 0 && height > 0 {
@@ -116,55 +131,55 @@ impl<H, E, C> HexGrid<H, E, C> {
                     HexEdge::Bottom,
                 )));
             }
-            for i in 0..(height + 1) / 2 {
-                grid.top_left_corners
+
+            for i in 0..((width + 1) / 2) {
+                grid.bottom_edge_corners
                     .push(corner_init(HexPosWithCorner::new(
-                        HexPos::new(0, 2 * i),
-                        HexCorner::TopLeft,
+                        HexPos::new(2 * i - 1, -1),
+                        HexCorner::TopRight,
+                    )));
+                grid.bottom_edge_corners
+                    .push(corner_init(HexPosWithCorner::new(
+                        HexPos::new(2 * i - 1, -1),
+                        HexCorner::Right,
+                    )));
+                grid.bottom_edge_corners
+                    .push(corner_init(HexPosWithCorner::new(
+                        HexPos::new(2 * i, -2),
+                        HexCorner::TopRight,
+                    )));
+            }
+            if width % 2 == 0 {
+                grid.bottom_edge_corners
+                    .push(corner_init(HexPosWithCorner::new(
+                        HexPos::new(width - 1, -1),
+                        HexCorner::TopRight,
+                    )));
+            }
+            for i in 0..((width + height % 2) / 2) {
+                grid.top_edge_corners
+                    .push(corner_init(HexPosWithCorner::new(
+                        HexPos::new(2 * i - height % 2, height),
+                        HexCorner::Right,
+                    )));
+            }
+            for i in 1..((height + 1) / 2) {
+                grid.left_edge_corners
+                    .push(corner_init(HexPosWithCorner::new(
+                        HexPos::new(-1, 2 * i - 1),
+                        HexCorner::Right,
+                    )));
+                grid.left_edge_corners
+                    .push(corner_init(HexPosWithCorner::new(
+                        HexPos::new(-1, 2 * i - 1),
+                        HexCorner::TopRight,
                     )));
             }
             if height % 2 == 0 {
-                for i in 0..(width / 2) {
-                    grid.top_left_corners
-                        .push(corner_init(HexPosWithCorner::new(
-                            HexPos::new(2 * i + 1, height - 1),
-                            HexCorner::TopLeft,
-                        )));
-                }
-            } else {
-                for i in 1..((width + 1) / 2) {
-                    grid.top_left_corners
-                        .push(corner_init(HexPosWithCorner::new(
-                            HexPos::new(2 * i, height - 1),
-                            HexCorner::TopLeft,
-                        )));
-                }
-            }
-            for i in 0..(height + 1) / 2 {
-                grid.left_corners.push(corner_init(HexPosWithCorner::new(
-                    HexPos::new(0, 2 * i),
-                    HexCorner::Left,
-                )));
-            }
-            for i in 0..((height + 1) / 2) {
-                grid.bottom_left_corners
+                grid.left_edge_corners
                     .push(corner_init(HexPosWithCorner::new(
-                        HexPos::new(0, 2 * i),
-                        HexCorner::BottomLeft,
-                    )));
-            }
-            for i in 1..((width + 1) / 2) {
-                grid.bottom_left_corners
-                    .push(corner_init(HexPosWithCorner::new(
-                        HexPos::new(i * 2, 0),
-                        HexCorner::BottomLeft,
-                    )));
-            }
-            for u in 0..width {
-                grid.bottom_right_corners
-                    .push(corner_init(HexPosWithCorner::new(
-                        HexPos::new(u, u % 2),
-                        HexCorner::BottomRight,
+                        HexPos::new(-1, height - 1),
+                        HexCorner::Right,
                     )));
             }
         }
@@ -243,37 +258,35 @@ impl<H, E, C> HexGrid<H, E, C> {
     }
 
     pub fn corner(&self, pos: HexPos, corner: HexCorner) -> &C {
-        let (index, corner) = self.corner_index(pos, corner);
-        match corner {
-            HexCorner::Right | HexCorner::TopRight => &self.hexes[index].corners[corner as usize],
-            HexCorner::TopLeft => &self.top_left_corners[index],
-            HexCorner::Left => &self.left_corners[index],
-            HexCorner::BottomLeft => &self.bottom_left_corners[index],
-            HexCorner::BottomRight => &self.bottom_right_corners[index],
+        match self.corner_index(pos, corner) {
+            CornerIndex::Hex(index, corner) => &self.hexes[index].corners[corner as usize],
+            CornerIndex::Bottom(index) => &self.bottom_edge_corners[index],
+            CornerIndex::Top(index) => &self.top_edge_corners[index],
+            CornerIndex::Left(index) => &self.left_edge_corners[index],
         }
     }
 
     pub fn corner_mut(&mut self, pos: HexPos, corner: HexCorner) -> &mut C {
-        let (index, corner) = self.corner_index(pos, corner);
-        match corner {
-            HexCorner::Right | HexCorner::TopRight => {
-                &mut self.hexes[index].corners[corner as usize]
-            }
-            HexCorner::TopLeft => &mut self.top_left_corners[index],
-            HexCorner::Left => &mut self.left_corners[index],
-            HexCorner::BottomLeft => &mut self.bottom_left_corners[index],
-            HexCorner::BottomRight => &mut self.bottom_right_corners[index],
+        match self.corner_index(pos, corner) {
+            CornerIndex::Hex(index, corner) => &mut self.hexes[index].corners[corner as usize],
+            CornerIndex::Bottom(index) => &mut self.bottom_edge_corners[index],
+            CornerIndex::Top(index) => &mut self.top_edge_corners[index],
+            CornerIndex::Left(index) => &mut self.left_edge_corners[index],
         }
     }
 
     fn unchecked_hex_index(&self, pos: HexPos) -> usize {
         let u = pos.u();
         let v = pos.v();
+        debug_assert_eq!(
+            (u + v) % 2,
+            0,
+            "Hex position {:?} is invalid: u + v must be even",
+            pos
+        );
         if v % 2 == 0 {
-            debug_assert_eq!(u % 2, 0, "Even row {} must have even u", v);
             (u / 2 + self.even_row_size * (v / 2) + self.odd_row_size * ((v + 1) / 2)) as usize
         } else {
-            debug_assert_eq!(u % 2, 1, "Odd row {} must have odd u", v);
             (u / 2 + self.even_row_size * ((v + 1) / 2) + self.odd_row_size * (v / 2)) as usize
         }
     }
@@ -313,32 +326,33 @@ impl<H, E, C> HexGrid<H, E, C> {
         }
     }
 
-    fn corner_index(&self, pos: HexPos, corner: HexCorner) -> (usize, HexCorner) {
+    fn corner_index(&self, pos: HexPos, corner: HexCorner) -> CornerIndex {
+        let (pos, corner): (HexPos, PrimaryHexCorner) = HexPosWithCorner::new(pos, corner).into();
         let (u, v) = pos.into();
         let (width, height) = self.size.into();
-
-        match corner {
-            HexCorner::Right | HexCorner::TopRight => (self.hex_index(pos), corner),
-            HexCorner::TopLeft if u == 0 => ((v / 2) as usize, corner),
-            HexCorner::TopLeft if v == height - 1 => ((height / 2 + u / 2) as usize, corner),
-            HexCorner::TopLeft => {
-                self.corner_index(pos.neighbor(HexEdge::TopLeft), HexCorner::Right)
+        if self.has_hex(pos) {
+            CornerIndex::Hex(self.hex_index(pos), corner)
+        } else if v == -1 {
+            if width % 2 == 0 && u == width - 1 {
+                assert_matches!(corner, PrimaryHexCorner::TopRight);
+                CornerIndex::Bottom(((width + 1) / 2) as usize * 3)
+            } else {
+                match corner {
+                    PrimaryHexCorner::Right => CornerIndex::Bottom(((u + 1) / 2) as usize * 3 + 1),
+                    PrimaryHexCorner::TopRight => CornerIndex::Bottom(((u + 1) / 2) as usize * 3),
+                }
             }
-            HexCorner::Left if u == 0 => ((v / 2) as usize, corner),
-            HexCorner::Left if v == 0 => {
-                self.corner_index(pos.neighbor(HexEdge::TopLeft), HexCorner::BottomRight)
-            }
-            HexCorner::Left => {
-                self.corner_index(pos.neighbor(HexEdge::BottomLeft), HexCorner::TopRight)
-            }
-            HexCorner::BottomLeft if u == 0 => ((v / 2) as usize, corner),
-            HexCorner::BottomLeft if v == 0 => (((height + 1) / 2 + u / 2 - 1) as usize, corner),
-            HexCorner::BottomLeft => {
-                self.corner_index(pos.neighbor(HexEdge::BottomLeft), HexCorner::Right)
-            }
-            HexCorner::BottomRight if v < 2 => (u as usize, corner),
-            HexCorner::BottomRight => {
-                self.corner_index(pos.neighbor(HexEdge::Bottom), HexCorner::TopRight)
+        } else if v == -2 {
+            assert_matches!(corner, PrimaryHexCorner::TopRight);
+            CornerIndex::Bottom((u / 2) as usize * 3 + 2)
+        } else if v == height {
+            assert_matches!(corner, PrimaryHexCorner::Right);
+            CornerIndex::Top(((u + 1) / 2) as usize)
+        } else {
+            assert_eq!(u, -1);
+            match corner {
+                PrimaryHexCorner::Right => CornerIndex::Left(((v - 1) / 2) as usize * 2),
+                PrimaryHexCorner::TopRight => CornerIndex::Left(((v - 1) / 2) as usize * 2 + 1),
             }
         }
     }
@@ -396,14 +410,15 @@ mod tests {
         let mut bottom_left_edges_size = 0;
         let mut bottom_edges_size = 0;
         let mut bottom_right_edges_size = 0;
-        let mut top_left_corners_size = 0;
-        let mut left_corners_size = 0;
-        let mut bottom_left_corners_size = 0;
-        let mut bottom_right_corners_size = 0;
+        let mut bottom_edge_corners_size = 0;
+        let mut top_edge_corners_size = 0;
+        let mut left_edge_corners_size = 0;
 
         for pos in grid.iter_hexes() {
-            let index = grid.hex_index(pos);
-            hex_grid_size = hex_grid_size.max(index + 1);
+            {
+                let index = grid.hex_index(pos);
+                hex_grid_size = hex_grid_size.max(index + 1);
+            }
 
             for edge in HexEdge::ALL {
                 let (index, index_edge) = grid.edge_index(pos, edge);
@@ -422,19 +437,15 @@ mod tests {
             }
 
             for corner in HexCorner::ALL {
-                let (index, index_corner) = grid.corner_index(pos, corner);
-                match index_corner {
-                    HexCorner::TopLeft => {
-                        top_left_corners_size = top_left_corners_size.max(index + 1);
+                match grid.corner_index(pos, corner) {
+                    CornerIndex::Bottom(index) => {
+                        bottom_edge_corners_size = bottom_edge_corners_size.max(index + 1);
                     }
-                    HexCorner::Left => {
-                        left_corners_size = left_corners_size.max(index + 1);
+                    CornerIndex::Top(index) => {
+                        top_edge_corners_size = top_edge_corners_size.max(index + 1);
                     }
-                    HexCorner::BottomLeft => {
-                        bottom_left_corners_size = bottom_left_corners_size.max(index + 1);
-                    }
-                    HexCorner::BottomRight => {
-                        bottom_right_corners_size = bottom_right_corners_size.max(index + 1);
+                    CornerIndex::Left(index) => {
+                        left_edge_corners_size = left_edge_corners_size.max(index + 1);
                     }
                     _ => {}
                 }
@@ -442,22 +453,14 @@ mod tests {
         }
 
         assert_eq!(hex_grid_size, grid.hexes.len());
+
         assert_eq!(bottom_left_edges_size, grid.bottom_left_edges.len());
         assert_eq!(bottom_edges_size, grid.bottom_edges.len());
         assert_eq!(bottom_right_edges_size, grid.bottom_right_edges.len());
-        assert_eq!(top_left_corners_size, grid.top_left_corners.len());
-        assert_eq!(left_corners_size, grid.left_corners.len());
-        assert_eq!(bottom_left_corners_size, grid.bottom_left_corners.len());
-        assert_eq!(bottom_right_corners_size, grid.bottom_right_corners.len());
-    }
 
-    #[test]
-    fn delete_me() {
-        // TODO
-        assert_eq!(
-            HexPosWithEdge::new(HexPos::new(2, 0), HexEdge::Bottom),
-            HexPosWithEdge::new(HexPos::new(2, -2), HexEdge::Top)
-        );
+        assert_eq!(bottom_edge_corners_size, grid.bottom_edge_corners.len());
+        assert_eq!(top_edge_corners_size, grid.top_edge_corners.len());
+        assert_eq!(left_edge_corners_size, grid.left_edge_corners.len());
     }
 
     #[quickcheck]
