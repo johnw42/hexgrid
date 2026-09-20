@@ -42,11 +42,15 @@ where
         }
     }
 
-    pub fn new_from(starting_hex: HexPos, starting_edge: HexEdge, container: &'c C) -> Self {
+    pub fn new_from(starting_hex: HexPos, container: &'c C) -> Self {
+        let starting_edge = HexEdge::ALL
+            .into_iter()
+            .find(|&edge| !container.contains_hex(starting_hex.neighbor(edge)))
+            .expect("Starting hex must have at least one exterior edge");
         Self {
             container,
             hex_iter: None,
-            edges_seen: HashSet::new(),
+            edges_seen: [(starting_hex, starting_edge)].into_iter().collect(),
             state: HexPerimeterIteratorState::YieldOne {
                 starting_hex,
                 starting_edge,

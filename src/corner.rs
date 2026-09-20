@@ -239,6 +239,7 @@ impl From<HexPosWithCorner> for (HexPos, HexCorner) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use quickcheck_macros::quickcheck;
     use std::collections::HashSet;
 
     #[test]
@@ -298,17 +299,15 @@ mod tests {
         }
     }
 
-    #[test]
-    fn iterator() {
-        for size in crate::iter_valid_sizes() {
-            let mut seen_corners = HashSet::new();
-            for pos in HexPosIterator::new(size) {
-                for corner in HexCorner::ALL {
-                    seen_corners.insert(HexPosWithCorner::new(pos, corner));
-                }
+    #[quickcheck]
+    fn iterator(size: HexGridSize) {
+        let mut seen_corners = HashSet::new();
+        for pos in HexPosIterator::new(size) {
+            for corner in HexCorner::ALL {
+                seen_corners.insert(HexPosWithCorner::new(pos, corner));
             }
-            let iter_corners = HexCornerIterator::new(size).collect::<HashSet<_>>();
-            assert_eq!(seen_corners, iter_corners);
         }
+        let iter_corners = HexCornerIterator::new(size).collect::<HashSet<_>>();
+        assert_eq!(seen_corners, iter_corners);
     }
 }

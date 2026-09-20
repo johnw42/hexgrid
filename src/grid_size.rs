@@ -47,8 +47,13 @@ impl From<HexGridSize> for (HexCoord, HexCoord) {
 impl Arbitrary for HexGridSize {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
         loop {
-            let width = HexCoord::arbitrary(g) % 64;
-            let height = HexCoord::arbitrary(g) % 64;
+            let (width, height) = if bool::arbitrary(g) {
+                // Make sure small sizes are checked more often, since they are
+                // more likely to have edge cases.
+                (HexCoord::arbitrary(g) % 3, HexCoord::arbitrary(g) % 3)
+            } else {
+                (HexCoord::arbitrary(g) % 64, HexCoord::arbitrary(g) % 64)
+            };
             if let Ok(size) = HexGridSize::new(width, height) {
                 return size;
             }

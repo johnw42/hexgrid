@@ -19,8 +19,3 @@ pub const HEX_HORIZONTAL_SPACING: Distance = HEX_WIDTH * 1.5;
 
 #[allow(clippy::excessive_precision)]
 const SQRT_3: Distance = 1.7320508075688772;
-
-#[cfg(test)]
-fn iter_valid_sizes() -> impl Iterator<Item = HexGridSize> {
-    (0..=9).flat_map(|width| (0..=9).filter_map(move |height| HexGridSize::new(width, height).ok()))
-}

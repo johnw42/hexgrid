@@ -296,21 +296,19 @@ impl Iterator for HexPosIterator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::iter_valid_sizes;
+    use quickcheck_macros::quickcheck;
     use std::collections::HashSet;
 
-    #[test]
-    fn hex_pos_iterator() {
-        for size in iter_valid_sizes() {
-            let expected = (0..size.height())
-                .flat_map(|v| {
-                    (0..size.width())
-                        .filter(move |&u| (u + v) % 2 == 0)
-                        .map(move |u| HexPos::new(u, v))
-                })
-                .collect::<HashSet<_>>();
-            let actual = HexPosIterator::new(size).collect::<HashSet<_>>();
-            assert_eq!(expected, actual);
-        }
+    #[quickcheck]
+    fn hex_pos_iterator(size: HexGridSize) {
+        let expected = (0..size.height())
+            .flat_map(|v| {
+                (0..size.width())
+                    .filter(move |&u| (u + v) % 2 == 0)
+                    .map(move |u| HexPos::new(u, v))
+            })
+            .collect::<HashSet<_>>();
+        let actual = HexPosIterator::new(size).collect::<HashSet<_>>();
+        assert_eq!(expected, actual);
     }
 }

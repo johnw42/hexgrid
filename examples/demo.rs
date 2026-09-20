@@ -6,7 +6,7 @@ use hexgrid::{
     edge::{HexEdge, HexPosWithEdge},
     grid::{self, HexGrid},
     grid_size::HexGridSize,
-    perimeter::perimeter_edges,
+    perimeter::HexPerimeterIterator,
     pos::{HexPos, HexPosContainer as _, NearestCorner, NearestEdge},
 };
 
@@ -23,6 +23,7 @@ fn main() {
 enum Selection {
     Owned,
     Perimeter,
+    PerimeterFromOrigin,
 }
 
 struct GridContent<T> {
@@ -40,11 +41,13 @@ type DemoGrid =
     HexGrid<GridContent<HexPos>, GridContent<HexPosWithEdge>, GridContent<HexPosWithCorner>>;
 
 struct DemoApp {
+    id: egui::Id,
     width: HexCoord,
     height: HexCoord,
     selection: Selection,
     grid: Option<DemoGrid>,
     grid_selection: Option<Selection>,
+    perimeter_animation: Vec<(HexPos, HexEdge)>,
 }
 
 const INIT_WIDTH: HexCoord = 5;
@@ -56,18 +59,21 @@ impl DemoApp {
         // Restore app state using cc.storage (requires the "persistence" feature).
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
         // for e.g. egui::PaintCallback.
-        let mut app = Self {
+
+        let id = egui::Id::new("demo_app");
+        Self {
+            id,
             width: INIT_WIDTH,
             height: INIT_HEIGHT,
             selection: Selection::Owned,
             grid: None,
             grid_selection: None,
-        };
-        app.create_grid();
-        app
+            perimeter_animation: Vec::new(),
+        }
     }
 
-    fn create_grid(&mut self) {
+    fn create_grid(&mut self, ctx: &egui::Context) {
+        self.perimeter_animation.clear();
         self.grid = HexGridSize::new(self.width, self.height).ok().map(|size| {
             DemoGrid::new(
                 size,
@@ -94,6 +100,9 @@ impl DemoApp {
                 Selection::Perimeter => {
                     self.select_perimeter();
                 }
+                Selection::PerimeterFromOrigin => {
+                    self.select_perimeter_from_origin(ctx);
+                }
             }
         }
     }
@@ -106,9 +115,18 @@ impl DemoApp {
                 .iter_hexes()
                 .filter(|&pos| !grid.hex(pos).is_active)
                 .collect::<Vec<_>>();
-            for (pos, edge) in perimeter_edges(&unselected_hexes.as_slice()) {
+            for (pos, edge) in HexPerimeterIterator::new(&unselected_hexes.as_slice()) {
                 grid.edge_mut(pos, edge).is_active = true;
             }
+        }
+    }
+
+    fn select_perimeter_from_origin(&mut self, ctx: &egui::Context) {
+        self.clear_edge_and_corner_selection();
+        ctx.animate_value_with_time(self.id, 0.0, 0.0);
+        if let Some(grid) = self.grid.as_mut() {
+            self.perimeter_animation =
+                HexPerimeterIterator::new_from(HexPos::new(0, 0), grid).collect();
         }
     }
 
@@ -142,6 +160,11 @@ impl eframe::App for DemoApp {
                 ui.label("Initial selection:");
                 ui.radio_value(&mut self.selection, Selection::Owned, "Owned");
                 ui.radio_value(&mut self.selection, Selection::Perimeter, "Perimeter");
+                ui.radio_value(
+                    &mut self.selection,
+                    Selection::PerimeterFromOrigin,
+                    "Perimeter from Origin",
+                );
             });
 
             if self
@@ -150,7 +173,7 @@ impl eframe::App for DemoApp {
                 .is_none_or(|g| g.width() != self.width || g.height() != self.height)
                 || self.grid_selection != Some(self.selection)
             {
-                self.create_grid();
+                self.create_grid(ui.ctx());
             }
 
             if self.grid.is_some() {
@@ -161,6 +184,17 @@ impl eframe::App for DemoApp {
                 });
             } else {
                 ui.label("Invalid grid size");
+            }
+
+            if !self.perimeter_animation.is_empty() {
+                let progress = ui.ctx().animate_value_with_time(
+                    self.id,
+                    (self.perimeter_animation.len() - 1) as f32,
+                    1.0,
+                );
+                let (pos, edge) = self.perimeter_animation[progress as usize];
+                let grid = self.grid.as_mut().unwrap();
+                grid.edge_mut(pos, edge).is_active = true;
             }
         });
     }
@@ -315,8 +349,11 @@ impl<'g> egui::Widget for HexView<'g> {
                     grid.hex(hover_hex).init_params
                 );
                 grid.hex_mut(hover_hex).toggle();
-                if self.app.selection == Selection::Perimeter {
-                    self.app.select_perimeter();
+                match self.app.selection {
+                    Selection::Owned | Selection::PerimeterFromOrigin => {}
+                    Selection::Perimeter => {
+                        self.app.select_perimeter();
+                    }
                 }
             }
         }

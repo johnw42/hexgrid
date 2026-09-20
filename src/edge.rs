@@ -200,6 +200,7 @@ impl Iterator for HexEdgeIterator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use quickcheck_macros::quickcheck;
     use std::collections::HashSet;
 
     #[test]
@@ -251,18 +252,16 @@ mod tests {
         }
     }
 
-    #[test]
-    fn iterator() {
-        for size in crate::iter_valid_sizes() {
-            let mut seen_edges = HashSet::new();
-            for pos in HexPosIterator::new(size) {
-                for edge in HexEdge::ALL {
-                    seen_edges.insert(HexPosWithEdge::new(pos, edge));
-                }
+    #[quickcheck]
+    fn iterator(size: HexGridSize) {
+        let mut seen_edges = HashSet::new();
+        for pos in HexPosIterator::new(size) {
+            for edge in HexEdge::ALL {
+                seen_edges.insert(HexPosWithEdge::new(pos, edge));
             }
-            let iter_edges = HexEdgeIterator::new(size).collect::<HashSet<_>>();
-            assert_eq!(seen_edges, iter_edges);
         }
+        let iter_edges = HexEdgeIterator::new(size).collect::<HashSet<_>>();
+        assert_eq!(seen_edges, iter_edges);
     }
 
     #[test]
