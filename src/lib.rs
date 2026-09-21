@@ -4,6 +4,7 @@ pub mod delta;
 pub mod edge;
 pub mod grid;
 pub mod grid_size;
+pub mod group;
 pub mod perimeter;
 pub mod pos;
 

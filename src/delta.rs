@@ -26,7 +26,7 @@ impl HexDelta {
     }
 
     /// Rotates the delta by 60 degrees counterclockwise `steps` times.
-    pub const fn rotate(self, steps: HexCoord) -> Self {
+    pub const fn rotated(self, steps: HexCoord) -> Self {
         let (du, dv) = self.unpack();
         match steps.rem_euclid(6) {
             0 => self,
@@ -130,35 +130,35 @@ mod tests {
     #[test]
     fn rotate() {
         let delta = HexDelta::new(1, 1);
-        assert_eq!(delta.rotate(0), delta);
-        assert_eq!(delta.rotate(1), HexDelta::new(0, 2));
-        assert_eq!(delta.rotate(2), HexDelta::new(-1, 1));
-        assert_eq!(delta.rotate(3), -delta);
-        assert_eq!(delta.rotate(4), HexDelta::new(0, -2));
-        assert_eq!(delta.rotate(5), HexDelta::new(1, -1));
+        assert_eq!(delta.rotated(0), delta);
+        assert_eq!(delta.rotated(1), HexDelta::new(0, 2));
+        assert_eq!(delta.rotated(2), HexDelta::new(-1, 1));
+        assert_eq!(delta.rotated(3), -delta);
+        assert_eq!(delta.rotated(4), HexDelta::new(0, -2));
+        assert_eq!(delta.rotated(5), HexDelta::new(1, -1));
 
         let delta = HexDelta::new(2, 2);
-        assert_eq!(delta.rotate(0), delta);
-        assert_eq!(delta.rotate(1), HexDelta::new(0, 4));
-        assert_eq!(delta.rotate(2), HexDelta::new(-2, 2));
-        assert_eq!(delta.rotate(3), -delta);
-        assert_eq!(delta.rotate(4), HexDelta::new(0, -4));
-        assert_eq!(delta.rotate(5), HexDelta::new(2, -2));
+        assert_eq!(delta.rotated(0), delta);
+        assert_eq!(delta.rotated(1), HexDelta::new(0, 4));
+        assert_eq!(delta.rotated(2), HexDelta::new(-2, 2));
+        assert_eq!(delta.rotated(3), -delta);
+        assert_eq!(delta.rotated(4), HexDelta::new(0, -4));
+        assert_eq!(delta.rotated(5), HexDelta::new(2, -2));
     }
 
     #[quickcheck]
     fn rotate_steps(delta: HexDelta, steps: u8) {
-        let by_steps = (0..steps).fold(delta, |d, _| d.rotate(1));
-        assert_eq!(by_steps, delta.rotate(steps as HexCoord));
+        let by_steps = (0..steps).fold(delta, |d, _| d.rotated(1));
+        assert_eq!(by_steps, delta.rotated(steps as HexCoord));
 
-        let by_steps = (0..steps).fold(delta, |d, _| d.rotate(-1));
-        assert_eq!(by_steps, delta.rotate(-(steps as HexCoord)));
+        let by_steps = (0..steps).fold(delta, |d, _| d.rotated(-1));
+        assert_eq!(by_steps, delta.rotated(-(steps as HexCoord)));
     }
 
     #[quickcheck]
     fn rotate_and_scale_commute(delta: HexDelta, steps: u8, scale: u8) {
-        let rotated_then_scaled = delta.rotate(steps as HexCoord) * scale as HexCoord;
-        let scaled_then_rotated = (delta * scale as HexCoord).rotate(steps as HexCoord);
+        let rotated_then_scaled = delta.rotated(steps as HexCoord) * scale as HexCoord;
+        let scaled_then_rotated = (delta * scale as HexCoord).rotated(steps as HexCoord);
         assert_eq!(rotated_then_scaled, scaled_then_rotated);
     }
 }
