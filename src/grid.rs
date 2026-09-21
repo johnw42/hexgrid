@@ -22,13 +22,17 @@ pub struct HexGrid<H, E = (), C = ()> {
     bottom_left_edges: Vec<E>,
     bottom_edges: Vec<E>,
     bottom_right_edges: Vec<E>,
-    // top_left_corners: Vec<C>,
-    // left_corners: Vec<C>,
-    // bottom_left_corners: Vec<C>,
-    // bottom_right_corners: Vec<C>,
     bottom_edge_corners: Vec<C>,
     top_edge_corners: Vec<C>,
     left_edge_corners: Vec<C>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EdgeIndex {
+    Hex(usize, PrimaryHexEdge),
+    BottomLeft(usize),
+    Bottom(usize),
+    BottomRight(usize),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -234,26 +238,20 @@ impl<H, E, C> HexGrid<H, E, C> {
     }
 
     pub fn edge(&self, pos: HexPos, edge: HexEdge) -> &E {
-        let (index, edge) = self.edge_index(pos, edge);
-        match edge {
-            HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft => {
-                &self.hexes[index].edges[edge as usize]
-            }
-            HexEdge::BottomLeft => &self.bottom_left_edges[index],
-            HexEdge::Bottom => &self.bottom_edges[index],
-            HexEdge::BottomRight => &self.bottom_right_edges[index],
+        match self.edge_index(pos, edge) {
+            EdgeIndex::Hex(index, edge) => &self.hexes[index].edges[edge as usize],
+            EdgeIndex::BottomLeft(index) => &self.bottom_left_edges[index],
+            EdgeIndex::Bottom(index) => &self.bottom_edges[index],
+            EdgeIndex::BottomRight(index) => &self.bottom_right_edges[index],
         }
     }
 
     pub fn edge_mut(&mut self, pos: HexPos, edge: HexEdge) -> &mut E {
-        let (index, edge) = self.edge_index(pos, edge);
-        match edge {
-            HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft => {
-                &mut self.hexes[index].edges[edge as usize]
-            }
-            HexEdge::BottomLeft => &mut self.bottom_left_edges[index],
-            HexEdge::Bottom => &mut self.bottom_edges[index],
-            HexEdge::BottomRight => &mut self.bottom_right_edges[index],
+        match self.edge_index(pos, edge) {
+            EdgeIndex::Hex(index, edge) => &mut self.hexes[index].edges[edge as usize],
+            EdgeIndex::BottomLeft(index) => &mut self.bottom_left_edges[index],
+            EdgeIndex::Bottom(index) => &mut self.bottom_edges[index],
+            EdgeIndex::BottomRight(index) => &mut self.bottom_right_edges[index],
         }
     }
 
@@ -300,28 +298,27 @@ impl<H, E, C> HexGrid<H, E, C> {
         self.unchecked_hex_index(pos)
     }
 
-    fn edge_index(&self, pos: HexPos, edge: HexEdge) -> (usize, HexEdge) {
+    fn edge_index(&self, pos: HexPos, edge: HexEdge) -> EdgeIndex {
         let (pos, edge): (HexPos, PrimaryHexEdge) = HexPosWithEdge::new(pos, edge).into();
         let (u, v) = pos.into();
         let (width, height) = self.size.into();
 
         if self.has_hex(pos) {
-            (self.hex_index(pos), edge.into())
+            EdgeIndex::Hex(self.hex_index(pos), edge)
         } else {
             match edge {
                 PrimaryHexEdge::TopRight if u == -1 => {
-                    (((v + 1) / 2) as usize, HexEdge::BottomLeft)
+                    EdgeIndex::BottomLeft(((v + 1) / 2) as usize)
                 }
-                PrimaryHexEdge::TopRight if v == -1 => (
-                    ((u + 1) / 2 + (height + 1) / 2 - 1) as usize,
-                    HexEdge::BottomLeft,
-                ),
-                PrimaryHexEdge::Top if v < 0 => (u as usize, HexEdge::Bottom),
-                PrimaryHexEdge::TopLeft if v == -1 => ((u / 2) as usize, HexEdge::BottomRight),
+                PrimaryHexEdge::TopRight if v == -1 => {
+                    EdgeIndex::BottomLeft(((u + 1) / 2 + (height + 1) / 2 - 1) as usize)
+                }
+                PrimaryHexEdge::Top if v < 0 => EdgeIndex::Bottom(u as usize),
+                PrimaryHexEdge::TopLeft if v == -1 => EdgeIndex::BottomRight((u / 2) as usize),
                 PrimaryHexEdge::TopLeft if u == width => {
-                    ((width / 2 + (v + 1) / 2) as usize, HexEdge::BottomRight)
+                    EdgeIndex::BottomRight((width / 2 + (v + 1) / 2) as usize)
                 }
-                _ => unreachable!(),
+                _ => panic!("Invalid edge at position {:?}: {:?}", pos, edge),
             }
         }
     }
@@ -421,15 +418,14 @@ mod tests {
             }
 
             for edge in HexEdge::ALL {
-                let (index, index_edge) = grid.edge_index(pos, edge);
-                match index_edge {
-                    HexEdge::BottomLeft => {
+                match grid.edge_index(pos, edge) {
+                    EdgeIndex::BottomLeft(index) => {
                         bottom_left_edges_size = bottom_left_edges_size.max(index + 1);
                     }
-                    HexEdge::Bottom => {
+                    EdgeIndex::Bottom(index) => {
                         bottom_edges_size = bottom_edges_size.max(index + 1);
                     }
-                    HexEdge::BottomRight => {
+                    EdgeIndex::BottomRight(index) => {
                         bottom_right_edges_size = bottom_right_edges_size.max(index + 1);
                     }
                     _ => {}
