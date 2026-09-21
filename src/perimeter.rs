@@ -1,7 +1,4 @@
-use crate::{
-    edge::HexEdge,
-    pos::{HexPos, HexPosContainer},
-};
+use crate::{container::HexPosContainer, edge::HexEdge, pos::HexPos};
 use std::collections::HashSet;
 
 pub struct HexPerimeterIterator<'c, C: HexPosContainer> {
@@ -65,7 +62,7 @@ where
         {
             self.items_produced += 1;
             debug_assert!(
-                self.items_produced <= 6 * self.container.iter_hexes().count(),
+                self.items_produced <= 6 * self.container.len(),
                 "Too many edges in perimeter, possible infinite loop"
             );
         }

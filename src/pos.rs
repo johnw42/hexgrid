@@ -1,16 +1,9 @@
-//    1,3   3,3   5,3
-//
-// 0,2   2,2   4,2
-//
-//    1,1   3,1   5,1
-//
-// 0,0   2,0   4,0
-
+use crate::delta::HexDelta;
 use crate::grid_size::HexGridSize;
 use crate::{Cartesian, Distance, HexCoord, corner::HexCorner, edge::HexEdge};
-use std::collections::HashSet;
 use std::f32::consts::{FRAC_PI_3, FRAC_PI_6};
 use std::fmt::Display;
+use std::ops::{Add, Sub};
 
 pub struct NearestCorner {
     pub corner: HexCorner,
@@ -56,9 +49,12 @@ impl HexPos {
         self.1
     }
 
+    pub const fn unpack(self) -> (HexCoord, HexCoord) {
+        (self.0, self.1)
+    }
+
     pub const fn shift(self, du: HexCoord, dv: HexCoord) -> Self {
-        let HexPos(u, v) = self;
-        HexPos::new(u + du, v + dv)
+        Self::new(self.0 + du, self.1 + dv)
     }
 
     pub fn from_center((x, y): (f32, f32)) -> Self {
@@ -221,34 +217,19 @@ impl HexPos {
     }
 }
 
-pub trait HexPosContainer {
-    type Iterator: Iterator<Item = HexPos>;
+impl Add<HexDelta> for HexPos {
+    type Output = Self;
 
-    fn contains_hex(&self, pos: HexPos) -> bool;
-    fn iter_hexes(&self) -> Self::Iterator;
-}
-
-impl<'a> HexPosContainer for &'a [HexPos] {
-    type Iterator = std::iter::Copied<std::slice::Iter<'a, HexPos>>;
-
-    fn contains_hex(&self, pos: HexPos) -> bool {
-        self.contains(&pos)
-    }
-
-    fn iter_hexes(&self) -> Self::Iterator {
-        self.iter().copied()
+    fn add(self, other: HexDelta) -> Self {
+        Self(self.0 + other.du(), self.1 + other.dv())
     }
 }
 
-impl HexPosContainer for HashSet<HexPos> {
-    type Iterator = std::collections::hash_set::IntoIter<HexPos>;
+impl Sub<HexDelta> for HexPos {
+    type Output = Self;
 
-    fn contains_hex(&self, pos: HexPos) -> bool {
-        self.contains(&pos)
-    }
-
-    fn iter_hexes(&self) -> Self::Iterator {
-        self.clone().into_iter()
+    fn sub(self, other: HexDelta) -> Self {
+        Self(self.0 - other.du(), self.1 - other.dv())
     }
 }
 

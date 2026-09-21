@@ -1,6 +1,7 @@
 use crate::{
     HexCoord,
-    pos::{HexPos, HexPosContainer, HexPosIterator},
+    container::HexPosContainer,
+    pos::{HexPos, HexPosIterator},
 };
 #[cfg(test)]
 use quickcheck::Arbitrary;
@@ -89,6 +90,11 @@ impl HexPosContainer for HexGridSize {
 
     fn iter_hexes(&self) -> Self::Iterator {
         HexPosIterator::new(*self)
+    }
+
+    fn len(&self) -> usize {
+        self.width as usize * self.height as usize / 2
+            + (self.width as usize * self.height as usize % 2)
     }
 }
 

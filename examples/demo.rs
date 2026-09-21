@@ -2,12 +2,13 @@ use eframe::egui;
 use egui::Pos2;
 use hexgrid::{
     Cartesian, Distance, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord,
+    container::HexPosContainer as _,
     corner::{HexCorner, HexPosWithCorner},
     edge::{HexEdge, HexPosWithEdge},
     grid::HexGrid,
     grid_size::HexGridSize,
     perimeter::HexPerimeterIterator,
-    pos::{HexPos, HexPosContainer as _, NearestCorner, NearestEdge},
+    pos::{HexPos, NearestCorner, NearestEdge},
 };
 
 fn main() {

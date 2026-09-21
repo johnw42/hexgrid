@@ -2,10 +2,11 @@
 
 use crate::{
     HexCoord,
+    container::HexPosContainer,
     corner::{HexCorner, HexCornerIterator, HexPosWithCorner, PrimaryHexCorner},
     edge::{HexEdge, HexEdgeIterator, HexPosWithEdge, PrimaryHexEdge},
     grid_size::HexGridSize,
-    pos::{HexPos, HexPosContainer, HexPosIterator},
+    pos::{HexPos, HexPosIterator},
 };
 use std::{
     assert_matches,
@@ -68,18 +69,13 @@ impl<H, E, C> HexGrid<H, E, C> {
             bottom_left_edges: Vec::new(),
             bottom_edges: Vec::new(),
             bottom_right_edges: Vec::new(),
-            // top_left_corners: Vec::new(),
-            // left_corners: Vec::new(),
-            // bottom_left_corners: Vec::new(),
-            // bottom_right_corners: Vec::new(),
             bottom_edge_corners: Vec::new(),
             top_edge_corners: Vec::new(),
             left_edge_corners: Vec::new(),
         };
 
         if width > 0 && height > 0 {
-            grid.hexes
-                .reserve_exact(grid.unchecked_hex_index(HexPos::new(height % 2, height)));
+            grid.hexes.reserve_exact(size.len());
             for pos in grid.iter_hexes() {
                 let hex = Hex {
                     data: hex_init(pos),
@@ -376,6 +372,10 @@ impl<H, E, C> HexPosContainer for HexGrid<H, E, C> {
     fn iter_hexes(&self) -> Self::Iterator {
         self.size.iter_hexes()
     }
+
+    fn len(&self) -> usize {
+        self.hexes.len()
+    }
 }
 
 #[cfg(test)]
@@ -449,6 +449,7 @@ mod tests {
         }
 
         assert_eq!(hex_grid_size, grid.hexes.len());
+        assert_eq!(hex_grid_size, grid.size().len());
 
         assert_eq!(bottom_left_edges_size, grid.bottom_left_edges.len());
         assert_eq!(bottom_edges_size, grid.bottom_edges.len());
