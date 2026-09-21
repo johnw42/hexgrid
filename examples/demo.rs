@@ -117,7 +117,7 @@ impl DemoApp {
                 .iter_hexes()
                 .filter(|&pos| !grid.hex(pos).is_active)
                 .collect::<Vec<_>>();
-            for (pos, edge) in HexPerimeterIterator::new(&unselected_hexes.as_slice()) {
+            for (pos, edge) in HexPerimeterIterator::new(&unselected_hexes) {
                 grid.edge_mut(pos, edge).is_active = true;
             }
         }

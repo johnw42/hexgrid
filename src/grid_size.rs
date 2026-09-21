@@ -82,13 +82,13 @@ impl Arbitrary for HexGridSize {
 }
 
 impl HexPosContainer for HexGridSize {
-    type Iterator = HexPosIterator;
+    type Iterator<'c> = HexPosIterator;
 
     fn contains_hex(&self, pos: HexPos) -> bool {
         pos.u() >= 0 && pos.u() < self.width && pos.v() >= 0 && pos.v() < self.height
     }
 
-    fn iter_hexes(&self) -> Self::Iterator {
+    fn iter_hexes(&self) -> Self::Iterator<'_> {
         HexPosIterator::new(*self)
     }
 

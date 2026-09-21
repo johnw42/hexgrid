@@ -363,13 +363,16 @@ impl<H, E, C> Default for HexGrid<H, E, C> {
 }
 
 impl<H, E, C> HexPosContainer for HexGrid<H, E, C> {
-    type Iterator = HexPosIterator;
+    type Iterator<'c>
+        = HexPosIterator
+    where
+        Self: 'c;
 
     fn contains_hex(&self, pos: HexPos) -> bool {
         self.size.contains_hex(pos)
     }
 
-    fn iter_hexes(&self) -> Self::Iterator {
+    fn iter_hexes(&self) -> Self::Iterator<'_> {
         self.size.iter_hexes()
     }
 

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 pub struct HexPerimeterIterator<'c, C: HexPosContainer> {
     container: &'c C,
-    hex_iter: Option<C::Iterator>,
+    hex_iter: Option<C::Iterator<'c>>,
     edges_seen: HashSet<(HexPos, HexEdge)>,
     #[cfg(debug_assertions)]
     items_produced: usize,
@@ -287,10 +287,9 @@ mod tests {
 
     #[quickcheck]
     fn perimeter_from(arb: ContiguousHexPosContainer) {
-        let expected_perimeter_edges = perimeter_edges(&arb.hexes.as_slice());
+        let expected_perimeter_edges = perimeter_edges(&arb.hexes);
         let actual_perimeter_edges =
-            HexPerimeterIterator::new_from(HexPos::new(0, 0), &arb.hexes.as_slice())
-                .collect::<Vec<_>>();
+            HexPerimeterIterator::new_from(HexPos::new(0, 0), &arb.hexes).collect::<Vec<_>>();
         assert_eq!(expected_perimeter_edges, actual_perimeter_edges);
     }
 }
