@@ -198,6 +198,39 @@ impl<H, E, C> HexGrid<H, E, C> {
         self.size.contains_hex(pos)
     }
 
+    pub fn has_edge(&self, edge_pos: HexEdgePos) -> bool {
+        if self.has_hex(edge_pos.pos()) {
+            return true;
+        }
+
+        let (pos, edge): (HexPos, NormHexEdge) = edge_pos.norm();
+        let (u, v) = pos.u_v();
+        let (width, height) = self.size.unpack();
+
+        match edge {
+            NormHexEdge::TopRight => u == -1 && (-1..height - 1).contains(&v),
+            NormHexEdge::Top => (0..width).contains(&u) && (-1..=0).contains(&v),
+            NormHexEdge::TopLeft => u == width && (-1..height - 1).contains(&v),
+        }
+    }
+
+    pub fn has_corner(&self, corner_pos: HexCornerPos) -> bool {
+        if self.has_hex(corner_pos.pos()) {
+            return true;
+        }
+
+        let (pos, corner): (HexPos, NormHexCorner) = corner_pos.norm();
+        let (u, v) = pos.u_v();
+        let (width, height) = self.size.unpack();
+
+        let corner_u_matches = match corner {
+            NormHexCorner::TopRight => u == -1,
+            NormHexCorner::TopLeft => u == width,
+        };
+        corner_u_matches && (-1..height - 1).contains(&v)
+            || (-2..=0).contains(&v) && (0..width).contains(&u) && height > 0
+    }
+
     pub fn iter_edges(&self) -> HexEdgeIterator {
         HexEdgeIterator::new(self.size)
     }
@@ -252,14 +285,7 @@ impl<H, E, C> HexGrid<H, E, C> {
     }
 
     fn unchecked_hex_index(&self, pos: HexPos) -> usize {
-        let u = pos.u();
-        let v = pos.v();
-        debug_assert_eq!(
-            (u + v) % 2,
-            0,
-            "Hex position {:?} is invalid: u + v must be even",
-            pos
-        );
+        let (u, v) = pos.u_v();
         if v % 2 == 0 {
             (u / 2 + self.even_row_size * (v / 2) + self.odd_row_size * ((v + 1) / 2)) as usize
         } else {
@@ -277,6 +303,12 @@ impl<H, E, C> HexGrid<H, E, C> {
     }
 
     fn edge_index(&self, edge_pos: HexEdgePos) -> EdgeIndex {
+        assert!(
+            self.has_edge(edge_pos),
+            "Edge at position {:?} does not exist",
+            edge_pos
+        );
+
         let (pos, edge): (HexPos, NormHexEdge) = edge_pos.norm();
         let (u, v) = pos.u_v();
         let (width, height) = self.size.unpack();
@@ -294,12 +326,18 @@ impl<H, E, C> HexGrid<H, E, C> {
                 NormHexEdge::TopLeft if u == width => {
                     EdgeIndex::BottomRight((width / 2 + (v + 1) / 2) as usize)
                 }
-                _ => panic!("Invalid edge at position {:?}: {:?}", pos, edge),
+                _ => panic!("Invalid edge at position {:?}", edge_pos),
             }
         }
     }
 
     fn corner_index(&self, corner_pos: HexCornerPos) -> CornerIndex {
+        assert!(
+            self.has_corner(corner_pos),
+            "Corner at position {:?} does not exist",
+            corner_pos
+        );
+
         let (pos, corner) = corner_pos.norm();
         let (u, v) = pos.u_v();
         let (width, height) = self.size.unpack();
@@ -462,6 +500,37 @@ mod tests {
                 let left = HexCornerPos::from((pos, corner)).norm();
                 let right = grid.corner((pos, corner).into()).norm();
                 assert_eq!(left, right);
+            }
+        }
+    }
+
+    #[test]
+    fn indices_in_range() {
+        for width in 0..=3 {
+            for height in 0..=3 {
+                if let Ok(size) = HexGridSize::new(width, height) {
+                    let grid = HexGrid::<()>::new_with_defaults(size);
+                    for pos in HexPosIterator::new(-3, -3, width + 2, height + 2) {
+                        eprintln!("size: {}, pos: {}", size, pos);
+                        if grid.has_hex(pos) {
+                            grid.hex(pos);
+                        }
+                        for edge in HexEdge::ALL {
+                            //dbg!(edge);
+                            let edge_pos = HexEdgePos::from((pos, edge));
+                            if grid.has_edge(edge_pos) {
+                                grid.edge(edge_pos);
+                            }
+                        }
+                        for corner in HexCorner::ALL {
+                            dbg!(corner);
+                            let corner_pos = HexCornerPos::from((pos, corner));
+                            if grid.has_corner(corner_pos) {
+                                grid.corner(corner_pos);
+                            }
+                        }
+                    }
+                }
             }
         }
     }

@@ -9,6 +9,7 @@ use crate::{
 };
 #[cfg(test)]
 use quickcheck::Arbitrary;
+use std::fmt::Display;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HexGridSize {
@@ -53,6 +54,12 @@ impl HexGridSize {
             .collect::<Vec<_>>();
         sizes.sort_by_key(|size| (size.width + size.height, size.width));
         sizes.into_iter()
+    }
+}
+
+impl Display for HexGridSize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}✕{}", self.width, self.height)
     }
 }
 

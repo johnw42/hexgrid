@@ -6,6 +6,7 @@ pub use crate::{
     edge_pos::HexEdgePos,
     grid::HexGrid,
     grid_size::HexGridSize,
+    group::HexGroup,
     perimeter::HexPerimeterIterator,
     pos::{HexPos, NearestCorner, NearestEdge},
 };
