@@ -47,11 +47,11 @@ impl HexPos {
         (self.0, self.1)
     }
 
-    pub const fn shift(self, du: HexCoord, dv: HexCoord) -> Self {
-        Self::new(self.0 + du, self.1 + dv)
+    pub const fn shift(self, delta: HexDelta) -> Self {
+        Self(self.u() + delta.du(), self.v() + delta.dv())
     }
 
-    pub fn from_center((x, y): (f32, f32)) -> Self {
+    pub fn from_center((x, y): Cartesian) -> Self {
         // Fractional axial coordinates for flat-topped hexes (R = 1.0)
         let frac_q = (2.0 / 3.0) * x;
         let frac_r = (-1.0 / 3.0) * x + (3.0_f32.sqrt() / 3.0) * y;
@@ -215,7 +215,7 @@ impl Add<HexDelta> for HexPos {
     type Output = Self;
 
     fn add(self, other: HexDelta) -> Self {
-        Self(self.0 + other.du(), self.1 + other.dv())
+        self.shift(other)
     }
 }
 
@@ -223,7 +223,7 @@ impl Sub<HexDelta> for HexPos {
     type Output = Self;
 
     fn sub(self, other: HexDelta) -> Self {
-        Self(self.0 - other.du(), self.1 - other.dv())
+        self.shift(-other)
     }
 }
 
@@ -240,8 +240,12 @@ impl HexId for HexPos {
         std::iter::empty()
     }
 
-    fn rotated_around(self, center: HexPos, steps: HexCoord) -> Self {
+    fn rotate_around(self, center: HexPos, steps: HexCoord) -> Self {
         (self - center).rotated(steps) + center
+    }
+
+    fn shift(self, delta: HexDelta) -> Self {
+        self + delta
     }
 }
 

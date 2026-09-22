@@ -1,6 +1,8 @@
 use crate::{
     HexCoord,
+    delta::HexDelta,
     edge::{HexEdge, NormHexEdge},
+    id::HexId,
     pos::HexPos,
 };
 use std::fmt::Display;
@@ -83,6 +85,28 @@ where
 impl Display for HexEdgePos {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({}, {}, {:?})", self.pos.u(), self.pos.v(), self.edge)
+    }
+}
+
+impl HexId for HexEdgePos {
+    fn pos(&self) -> HexPos {
+        self.pos
+    }
+
+    fn corners(&self) -> impl Iterator<Item = crate::corner::HexCorner> + '_ {
+        std::iter::empty()
+    }
+
+    fn edges(&self) -> impl Iterator<Item = HexEdge> + '_ {
+        std::iter::once(self.edge)
+    }
+
+    fn rotate_around(self, center: HexPos, steps: HexCoord) -> Self {
+        (self.pos.rotate_around(center, steps), self.edge).into()
+    }
+
+    fn shift(self, delta: HexDelta) -> Self {
+        (self.pos.shift(delta), self.edge).into()
     }
 }
 

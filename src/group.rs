@@ -1,5 +1,5 @@
 use crate::{HexCoord, container::HexPosContainer, delta::HexDelta, id::HexId, pos::HexPos};
-use std::{collections::HashSet, ops::Add};
+use std::collections::HashSet;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct HexGroup<H = HexPos>(HashSet<H>)
@@ -38,17 +38,17 @@ where
         self.0.remove(pos)
     }
 
-    pub fn rotate_around(&mut self, center: HexPos, steps: HexCoord) {
-        *self = self.clone().rotated_around(center, steps);
-    }
-
-    pub fn rotated_around(self, center: HexPos, steps: HexCoord) -> Self {
+    pub fn rotate_around(self, center: HexPos, steps: HexCoord) -> Self {
         Self(
             self.0
                 .into_iter()
-                .map(|pos| pos.rotated_around(center, steps))
+                .map(|pos| pos.rotate_around(center, steps))
                 .collect(),
         )
+    }
+
+    pub fn shift(self, delta: HexDelta) -> Self {
+        Self(self.0.into_iter().map(|pos| pos.shift(delta)).collect())
     }
 }
 
@@ -115,16 +115,5 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
-    }
-}
-
-impl<H> Add<HexDelta> for HexGroup<H>
-where
-    H: HexId,
-{
-    type Output = HexGroup<H>;
-
-    fn add(self, delta: HexDelta) -> Self::Output {
-        HexGroup(self.0.into_iter().map(|pos| pos + delta).collect())
     }
 }
