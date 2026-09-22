@@ -5,7 +5,10 @@ use crate::{
     grid_size::HexGridSize,
     pos::{HexPos, HexPosIterator},
 };
-use std::f32::consts::{FRAC_PI_3, PI};
+use std::{
+    f32::consts::{FRAC_PI_3, PI},
+    fmt::Display,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HexCorner {
@@ -240,6 +243,12 @@ impl From<HexPosWithCorner> for (HexPos, HexCorner) {
     fn from(pos_with_corner: HexPosWithCorner) -> Self {
         let HexPosWithCorner { pos, corner } = pos_with_corner;
         (pos, corner.into())
+    }
+}
+
+impl Display for HexPosWithCorner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}, {}, {:?})", self.pos.u(), self.pos.v(), self.corner)
     }
 }
 

@@ -1,5 +1,4 @@
 use crate::delta::HexDelta;
-use crate::grid_size::HexGridSize;
 use crate::{Cartesian, Distance, HexCoord, corner::HexCorner, edge::HexEdge};
 use std::f32::consts::{FRAC_PI_3, FRAC_PI_6};
 use std::fmt::Display;
@@ -279,7 +278,7 @@ impl Iterator for HexPosIterator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::container::HexPosContainer;
+    use crate::{container::HexPosContainer, grid_size::HexGridSize};
     use quickcheck_macros::quickcheck;
     use std::collections::HashSet;
 

@@ -330,7 +330,7 @@ impl<'g> egui::Widget for HexView<'g> {
             let grid = self.app.grid.as_mut().unwrap();
             if let Some((hover_hex, hover_corner)) = hover_corner {
                 eprintln!(
-                    "Clicked corner {:?} of hex {:?}; init_params: {:?}",
+                    "Clicked {:?} corner of hex {}; init_params: {}",
                     hover_corner,
                     hover_hex,
                     grid.corner(hover_hex, hover_corner).init_params
@@ -342,7 +342,7 @@ impl<'g> egui::Widget for HexView<'g> {
                 grid.corner_mut(hover_hex, hover_corner).toggle();
             } else if let Some((hover_hex, hover_edge)) = hover_edge {
                 eprintln!(
-                    "Clicked edge {:?} of hex {:?}; init_params: {:?}",
+                    "Clicked {:?} edge of hex {}; init_params: {}",
                     hover_edge,
                     hover_hex,
                     grid.edge(hover_hex, hover_edge).init_params
@@ -350,7 +350,7 @@ impl<'g> egui::Widget for HexView<'g> {
                 grid.edge_mut(hover_hex, hover_edge).toggle();
             } else if let Some(hover_hex) = hover_hex {
                 eprintln!(
-                    "Clicked hex {:?}; init_params: {:?}",
+                    "Clicked hex {}; init_params: {}",
                     hover_hex,
                     grid.hex(hover_hex).init_params
                 );
