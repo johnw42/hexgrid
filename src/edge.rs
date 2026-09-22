@@ -1,11 +1,4 @@
-use crate::{
-    HexCoord,
-    container::HexPosContainer,
-    corner::HexCorner,
-    grid_size::HexGridSize,
-    pos::{HexPos, HexPosIterator},
-};
-use std::fmt::Display;
+use crate::corner::HexCorner;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HexEdge {
@@ -101,135 +94,9 @@ impl TryFrom<HexEdge> for NormHexEdge {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct HexEdgePos {
-    pub pos: HexPos,
-    pub edge: HexEdge,
-}
-
-impl HexEdgePos {
-    pub fn pos(self) -> HexPos {
-        self.pos
-    }
-
-    pub fn u(self) -> HexCoord {
-        self.pos.u()
-    }
-
-    pub fn v(self) -> HexCoord {
-        self.pos.v()
-    }
-
-    pub fn edge(self) -> HexEdge {
-        self.edge
-    }
-
-    pub fn pos_edge(self) -> (HexPos, HexEdge) {
-        (self.pos, self.edge)
-    }
-
-    pub fn u_v_edge(self) -> (HexCoord, HexCoord, HexEdge) {
-        (self.pos.u(), self.pos.v(), self.edge)
-    }
-
-    pub fn norm(self) -> (HexPos, NormHexEdge) {
-        if let Ok(primary_edge) = self.edge.try_into() {
-            (self.pos, primary_edge)
-        } else {
-            (
-                self.pos.neighbor(self.edge),
-                self.edge.opposite().try_into().unwrap(),
-            )
-        }
-    }
-
-    pub fn variants(self) -> [Self; 2] {
-        let (pos, edge) = self.norm();
-        [
-            (pos, edge).into(),
-            (pos.neighbor(edge), edge.opposite()).into(),
-        ]
-    }
-}
-
-impl<E> From<(HexCoord, HexCoord, E)> for HexEdgePos
-where
-    E: Into<HexEdge>,
-{
-    fn from((u, v, edge): (HexCoord, HexCoord, E)) -> Self {
-        Self {
-            pos: HexPos::new(u, v),
-            edge: edge.into(),
-        }
-    }
-}
-
-impl<E> From<(HexPos, E)> for HexEdgePos
-where
-    E: Into<HexEdge>,
-{
-    fn from((pos, edge): (HexPos, E)) -> Self {
-        Self {
-            pos,
-            edge: edge.into(),
-        }
-    }
-}
-
-impl Display for HexEdgePos {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}, {}, {:?})", self.pos.u(), self.pos.v(), self.edge)
-    }
-}
-
-pub struct HexEdgeIterator {
-    width: HexCoord,
-    edge: HexEdge,
-    pos: Option<HexPos>,
-    pos_iter: HexPosIterator,
-}
-
-impl HexEdgeIterator {
-    pub fn new(size: HexGridSize) -> Self {
-        let mut pos_iter = size.iter_hexes();
-        let pos = pos_iter.next();
-        Self {
-            width: size.width(),
-            edge: HexEdge::TopRight,
-            pos,
-            pos_iter,
-        }
-    }
-}
-
-impl Iterator for HexEdgeIterator {
-    type Item = HexEdgePos;
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let pos = self.pos?;
-            let edge = self.edge;
-            self.edge = self.edge.rotate(1);
-            if self.edge == HexEdge::TopRight {
-                self.pos = self.pos_iter.next();
-            }
-            let is_valid_edge = match edge {
-                HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft => true,
-                HexEdge::BottomLeft => pos.u() == 0 || pos.v() == 0,
-                HexEdge::Bottom => pos.v() <= 1,
-                HexEdge::BottomRight => pos.v() == 0 || pos.u() == self.width - 1,
-            };
-            if is_valid_edge {
-                return Some(HexEdgePos::from((pos, edge)));
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use quickcheck_macros::quickcheck;
-    use std::collections::HashSet;
 
     #[test]
     fn all() {
@@ -278,29 +145,5 @@ mod tests {
             assert_eq!(edge, ends[0].adjacent_edges()[1]);
             assert_eq!(edge, ends[1].adjacent_edges()[0]);
         }
-    }
-
-    #[test]
-    fn variants() {
-        for edge in HexEdge::ALL {
-            let edge_pos = HexEdgePos::from((0, 0, edge));
-            for variant in edge_pos.variants() {
-                assert_eq!(variant.norm(), edge_pos.norm());
-            }
-        }
-    }
-
-    #[quickcheck]
-    fn iterator(size: HexGridSize) {
-        let mut seen_edges = HashSet::new();
-        for pos in size.iter_hexes() {
-            for edge in HexEdge::ALL {
-                seen_edges.insert(HexEdgePos::from((pos, edge)).norm());
-            }
-        }
-        let iter_edges = HexEdgeIterator::new(size)
-            .map(|e| e.norm())
-            .collect::<HashSet<_>>();
-        assert_eq!(seen_edges, iter_edges);
     }
 }

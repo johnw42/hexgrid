@@ -1,4 +1,4 @@
-use crate::{container::HexPosContainer, edge::HexEdge, edge::HexEdgePos, pos::HexPos};
+use crate::{container::HexPosContainer, edge::HexEdge, edge_pos::HexEdgePos, pos::HexPos};
 use std::collections::HashSet;
 
 pub struct HexPerimeterIterator<'c, C: HexPosContainer> {

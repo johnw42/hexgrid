@@ -1,4 +1,5 @@
 use crate::delta::HexDelta;
+use crate::id::HexId;
 use crate::{Cartesian, Distance, HexCoord, corner::HexCorner, edge::HexEdge};
 use std::f32::consts::{FRAC_PI_3, FRAC_PI_6};
 use std::fmt::Display;
@@ -223,6 +224,24 @@ impl Sub<HexDelta> for HexPos {
 
     fn sub(self, other: HexDelta) -> Self {
         Self(self.0 - other.du(), self.1 - other.dv())
+    }
+}
+
+impl HexId for HexPos {
+    fn pos(&self) -> HexPos {
+        *self
+    }
+
+    fn corners(&self) -> impl Iterator<Item = HexCorner> + '_ {
+        std::iter::empty()
+    }
+
+    fn edges(&self) -> impl Iterator<Item = HexEdge> + '_ {
+        std::iter::empty()
+    }
+
+    fn rotated_around(self, center: HexPos, steps: HexCoord) -> Self {
+        (self - center).rotated(steps) + center
     }
 }
 

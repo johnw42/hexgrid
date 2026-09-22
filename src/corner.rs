@@ -1,14 +1,5 @@
-use crate::{
-    HexCoord,
-    container::HexPosContainer as _,
-    edge::HexEdge,
-    grid_size::HexGridSize,
-    pos::{HexPos, HexPosIterator},
-};
-use std::{
-    f32::consts::{FRAC_PI_3, PI},
-    fmt::Display,
-};
+use crate::edge::HexEdge;
+use std::f32::consts::{FRAC_PI_3, PI};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HexCorner {
@@ -113,147 +104,9 @@ impl TryFrom<HexCorner> for NormHexCorner {
     }
 }
 
-pub struct HexCornerIterator {
-    width: HexCoord,
-    corner: HexCorner,
-    pos: Option<HexPos>,
-    pos_iter: HexPosIterator,
-}
-
-impl HexCornerIterator {
-    pub fn new(size: HexGridSize) -> Self {
-        let mut pos_iter = size.iter_hexes();
-        let pos = pos_iter.next();
-        Self {
-            width: size.width(),
-            corner: HexCorner::TopRight,
-            pos,
-            pos_iter,
-        }
-    }
-}
-
-impl Iterator for HexCornerIterator {
-    type Item = HexCornerPos;
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let pos = self.pos?;
-            let corner = self.corner;
-            self.corner = self.corner.rotate(1);
-            if self.corner == HexCorner::TopRight {
-                self.pos = self.pos_iter.next();
-            }
-            let is_valid_corner = match corner {
-                HexCorner::Right | HexCorner::TopRight | HexCorner::TopLeft => true,
-                HexCorner::Left => pos.u() == 0,
-                HexCorner::BottomLeft => pos.v() == 0 && pos.v() == 0 || pos.v() == 1,
-                HexCorner::BottomRight => {
-                    pos.v() < 2
-                        || (self.width % 2 == 0 && pos.v() == 1 && pos.u() == self.width - 1)
-                }
-            };
-            if is_valid_corner {
-                return Some(HexCornerPos::from((pos, corner)));
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct HexCornerPos {
-    pub pos: HexPos,
-    pub corner: HexCorner,
-}
-
-impl HexCornerPos {
-    pub fn u(self) -> HexCoord {
-        self.pos.u()
-    }
-
-    pub fn v(self) -> HexCoord {
-        self.pos.v()
-    }
-
-    pub fn pos(self) -> HexPos {
-        self.pos
-    }
-
-    pub fn corner(self) -> HexCorner {
-        self.corner
-    }
-
-    pub fn pos_corner(self) -> (HexPos, HexCorner) {
-        (self.pos, self.corner)
-    }
-
-    pub fn u_v_corner(self) -> (HexCoord, HexCoord, HexCorner) {
-        (self.pos.u(), self.pos.v(), self.corner)
-    }
-
-    pub fn norm(self) -> (HexPos, NormHexCorner) {
-        let pos = self.pos;
-        match self.corner {
-            HexCorner::Right => (pos, NormHexCorner::Right),
-            HexCorner::TopRight => (pos, NormHexCorner::TopRight),
-            HexCorner::TopLeft => (pos.shift(-1, 1), NormHexCorner::Right),
-            HexCorner::Left => (pos.shift(-1, -1), NormHexCorner::TopRight),
-            HexCorner::BottomLeft => (pos.shift(-1, -1), NormHexCorner::Right),
-            HexCorner::BottomRight => (pos.shift(0, -2), NormHexCorner::TopRight),
-        }
-    }
-
-    pub fn variants(self) -> [Self; 3] {
-        let (pos, corner) = self.norm();
-        match corner {
-            NormHexCorner::Right => [
-                (pos, HexCorner::Right).into(),
-                (pos.shift(1, 1), HexCorner::BottomLeft).into(),
-                (pos.shift(1, -1), HexCorner::TopLeft).into(),
-            ],
-            NormHexCorner::TopRight => [
-                (pos, HexCorner::TopRight).into(),
-                (pos.shift(0, 2), HexCorner::BottomRight).into(),
-                (pos.shift(1, 1), HexCorner::Left).into(),
-            ],
-        }
-    }
-}
-
-impl<C> From<(HexCoord, HexCoord, C)> for HexCornerPos
-where
-    C: Into<HexCorner>,
-{
-    fn from((u, v, corner): (HexCoord, HexCoord, C)) -> Self {
-        Self {
-            pos: HexPos::new(u, v),
-            corner: corner.into(),
-        }
-    }
-}
-
-impl<C> From<(HexPos, C)> for HexCornerPos
-where
-    C: Into<HexCorner>,
-{
-    fn from((pos, corner): (HexPos, C)) -> Self {
-        Self {
-            pos,
-            corner: corner.into(),
-        }
-    }
-}
-
-impl Display for HexCornerPos {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}, {}, {:?})", self.u(), self.v(), self.corner())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use quickcheck_macros::quickcheck;
-    use std::collections::HashSet;
 
     #[test]
     fn rotation() {
@@ -290,29 +143,5 @@ mod tests {
             assert_eq!(corner, edges[0].ends()[1]);
             assert_eq!(corner, edges[1].ends()[0]);
         }
-    }
-
-    #[test]
-    fn variants() {
-        for corner in HexCorner::ALL {
-            let corner_pos = HexCornerPos::from((0, 0, corner));
-            for variant in corner_pos.variants() {
-                assert_eq!(variant.norm(), corner_pos.norm());
-            }
-        }
-    }
-
-    #[quickcheck]
-    fn iterator(size: HexGridSize) {
-        let mut seen_corners = HashSet::new();
-        for pos in size.iter_hexes() {
-            for corner in HexCorner::ALL {
-                seen_corners.insert(HexCornerPos::from((pos, corner)).norm());
-            }
-        }
-        let iter_corners = HexCornerIterator::new(size)
-            .map(|c| c.norm())
-            .collect::<HashSet<_>>();
-        assert_eq!(seen_corners, iter_corners);
     }
 }

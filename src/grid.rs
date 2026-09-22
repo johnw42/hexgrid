@@ -3,9 +3,11 @@
 use crate::{
     HexCoord,
     container::HexPosContainer,
-    corner::{HexCorner, HexCornerIterator, HexCornerPos, NormHexCorner},
-    edge::{HexEdge, HexEdgeIterator, HexEdgePos, NormHexEdge},
-    grid_size::HexGridSize,
+    corner::{HexCorner, NormHexCorner},
+    corner_pos::HexCornerPos,
+    edge::{HexEdge, NormHexEdge},
+    edge_pos::HexEdgePos,
+    grid_size::{HexCornerIterator, HexEdgeIterator, HexGridSize},
     pos::{HexPos, HexPosIterator},
 };
 use std::{
@@ -389,7 +391,6 @@ impl<H, E, C> HexPosContainer for HexGrid<H, E, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{corner::HexCornerPos, edge::HexEdgePos};
     use quickcheck_macros::quickcheck;
     use std::collections::HashSet;
 

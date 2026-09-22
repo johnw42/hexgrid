@@ -1,14 +1,9 @@
 use eframe::egui;
 use egui::Pos2;
 use hexgrid::{
-    Cartesian, Distance, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord,
-    container::HexPosContainer as _,
-    corner::{HexCorner, HexCornerPos},
-    edge::{HexEdge, HexEdgePos},
-    grid::HexGrid,
-    grid_size::HexGridSize,
-    perimeter::HexPerimeterIterator,
-    pos::{HexPos, NearestCorner, NearestEdge},
+    Cartesian, Distance, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord, HexCorner,
+    HexCornerPos, HexEdge, HexEdgePos, HexGrid, HexGridSize, HexPerimeterIterator, HexPos,
+    HexPosContainer as _, NearestCorner, NearestEdge,
 };
 
 fn main() {
