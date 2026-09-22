@@ -236,17 +236,19 @@ impl Sub<HexDelta> for HexPos {
 pub struct HexPosIterator {
     u: HexCoord,
     v: HexCoord,
-    width: HexCoord,
-    height: HexCoord,
+    min_u: HexCoord,
+    max_u: HexCoord,
+    max_v: HexCoord,
 }
 
 impl HexPosIterator {
-    pub fn new(size: HexGridSize) -> Self {
+    pub fn new(min_u: HexCoord, min_v: HexCoord, max_u: HexCoord, max_v: HexCoord) -> Self {
         Self {
-            u: 0,
-            v: 0,
-            width: size.width(),
-            height: size.height(),
+            u: min_u,
+            v: min_v,
+            min_u,
+            max_u,
+            max_v,
         }
     }
 }
@@ -256,16 +258,16 @@ impl Iterator for HexPosIterator {
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut result = None;
-        while result.is_none() && self.v < self.height && self.u < self.width {
+        while result.is_none() && self.v <= self.max_v && self.u <= self.max_u {
             if (self.u + self.v) % 2 != 0 {
                 self.u += 1;
             }
-            if self.u < self.width {
+            if self.u <= self.max_u {
                 result = Some(HexPos::new(self.u, self.v));
             }
             self.u += 1;
-            if self.u >= self.width {
-                self.u = 0;
+            if self.u > self.max_u {
+                self.u = self.min_u;
                 self.v += 1;
             }
         }
@@ -277,6 +279,7 @@ impl Iterator for HexPosIterator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::container::HexPosContainer;
     use quickcheck_macros::quickcheck;
     use std::collections::HashSet;
 
@@ -289,7 +292,7 @@ mod tests {
                     .map(move |u| HexPos::new(u, v))
             })
             .collect::<HashSet<_>>();
-        let actual = HexPosIterator::new(size).collect::<HashSet<_>>();
+        let actual = size.iter_hexes().collect::<HashSet<_>>();
         assert_eq!(expected, actual);
     }
 }

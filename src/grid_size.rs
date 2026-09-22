@@ -89,7 +89,7 @@ impl HexPosContainer for HexGridSize {
     }
 
     fn iter_hexes(&self) -> Self::Iterator<'_> {
-        HexPosIterator::new(*self)
+        HexPosIterator::new(0, 0, self.width - 1, self.height - 1)
     }
 
     fn len(&self) -> usize {

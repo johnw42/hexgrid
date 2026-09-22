@@ -1,5 +1,6 @@
 use crate::{
     HexCoord,
+    container::HexPosContainer as _,
     edge::HexEdge,
     grid_size::HexGridSize,
     pos::{HexPos, HexPosIterator},
@@ -118,7 +119,7 @@ pub struct HexCornerIterator {
 
 impl HexCornerIterator {
     pub fn new(size: HexGridSize) -> Self {
-        let mut pos_iter = HexPosIterator::new(size);
+        let mut pos_iter = size.iter_hexes();
         let pos = pos_iter.next();
         Self {
             width: size.width(),
@@ -308,7 +309,7 @@ mod tests {
     #[quickcheck]
     fn iterator(size: HexGridSize) {
         let mut seen_corners = HashSet::new();
-        for pos in HexPosIterator::new(size) {
+        for pos in size.iter_hexes() {
             for corner in HexCorner::ALL {
                 seen_corners.insert(HexPosWithCorner::new(pos, corner));
             }
