@@ -1,10 +1,10 @@
-use crate::{container::HexPosContainer, edge::HexEdge, pos::HexPos};
+use crate::{container::HexPosContainer, edge::HexEdge, edge::HexEdgePos, pos::HexPos};
 use std::collections::HashSet;
 
 pub struct HexPerimeterIterator<'c, C: HexPosContainer> {
     container: &'c C,
     hex_iter: Option<C::Iterator<'c>>,
-    edges_seen: HashSet<(HexPos, HexEdge)>,
+    edges_seen: HashSet<HexEdgePos>,
     #[cfg(debug_assertions)]
     items_produced: usize,
     state: HexPerimeterIteratorState,
@@ -32,7 +32,7 @@ where
         Self {
             container,
             hex_iter: Some(container.iter_hexes()),
-            edges_seen: HashSet::new(),
+            edges_seen: HashSet::with_capacity(6 * container.len()),
             state: HexPerimeterIteratorState::FindStartingHex,
             #[cfg(debug_assertions)]
             items_produced: 0,
@@ -44,10 +44,12 @@ where
             .into_iter()
             .find(|&edge| !container.contains_hex(starting_hex.neighbor(edge)))
             .expect("Starting hex must have at least one exterior edge");
+        let mut edges_seen = HashSet::with_capacity(6 * container.len());
+        edges_seen.insert(HexEdgePos::from((starting_hex, starting_edge)));
         Self {
             container,
             hex_iter: None,
-            edges_seen: [(starting_hex, starting_edge)].into_iter().collect(),
+            edges_seen,
             state: HexPerimeterIteratorState::YieldOne {
                 starting_hex,
                 starting_edge,
@@ -77,7 +79,7 @@ impl<'c, C> Iterator for HexPerimeterIterator<'c, C>
 where
     C: HexPosContainer,
 {
-    type Item = (HexPos, HexEdge);
+    type Item = HexEdgePos;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.state {
@@ -87,7 +89,9 @@ where
                     .into_iter()
                     .find(|&edge| self.is_exterior_edge(starting_hex, edge));
                 if let Some(starting_edge) = exterior_edge
-                    && self.edges_seen.insert((starting_hex, starting_edge))
+                    && self
+                        .edges_seen
+                        .insert(HexEdgePos::from((starting_hex, starting_edge)))
                 {
                     self.state = HexPerimeterIteratorState::YieldOne {
                         starting_hex,
@@ -107,7 +111,7 @@ where
                     current_edge: starting_edge,
                 };
                 self.increment_items_produced();
-                Some((starting_hex, starting_edge))
+                Some(HexEdgePos::from((starting_hex, starting_edge)))
             }
             HexPerimeterIteratorState::TraverseBoundary {
                 starting_hex,
@@ -128,7 +132,7 @@ where
                     // Completed one full perimeter, find next starting point
                     self.state = HexPerimeterIteratorState::FindStartingHex;
                     self.next()
-                } else if self.edges_seen.insert((hex, edge)) {
+                } else if self.edges_seen.insert(HexEdgePos::from((hex, edge))) {
                     // Found new edge, continue traversal
                     self.state = HexPerimeterIteratorState::TraverseBoundary {
                         starting_hex,
@@ -137,7 +141,7 @@ where
                         current_edge: edge,
                     };
                     self.increment_items_produced();
-                    Some((hex, edge))
+                    Some(HexEdgePos::from((hex, edge)))
                 } else {
                     // Edge already seen but not back at start - something is wrong
                     // This shouldn't happen if the algorithm is correct
@@ -157,7 +161,7 @@ mod tests {
     use quickcheck_macros::quickcheck;
 
     // Reference implementation.
-    fn perimeter_edges<C: HexPosContainer>(container: &C) -> Vec<(HexPos, HexEdge)> {
+    fn perimeter_edges<C: HexPosContainer>(container: &C) -> Vec<HexEdgePos> {
         let is_exterior_edge =
             |pos: HexPos, edge: HexEdge| !container.contains_hex(pos.neighbor(edge));
 
@@ -172,7 +176,7 @@ mod tests {
             let Some(starting_edge) = exterior_edge else {
                 continue;
             };
-            if !edges_seen.insert((starting_hex, starting_edge)) {
+            if !edges_seen.insert(HexEdgePos::from((starting_hex, starting_edge))) {
                 continue;
             }
 
@@ -180,12 +184,12 @@ mod tests {
             let mut edge = starting_edge;
             let mut hex = starting_hex;
             loop {
-                result.push((hex, edge));
+                result.push(HexEdgePos::from((hex, edge)));
                 debug_assert!(
                     result.len() <= 6 * container.iter_hexes().count(),
                     "Too many edges in perimeter, possible infinite loop"
                 );
-                edges_seen.insert((hex, edge));
+                edges_seen.insert(HexEdgePos::from((hex, edge)));
                 edge = edge.rotate(1);
                 if !is_exterior_edge(hex, edge) {
                     hex = hex.neighbor(edge);

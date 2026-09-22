@@ -36,11 +36,9 @@ impl HexGridSize {
     pub const fn height(&self) -> HexCoord {
         self.height
     }
-}
 
-impl From<HexGridSize> for (HexCoord, HexCoord) {
-    fn from(size: HexGridSize) -> Self {
-        (size.width, size.height)
+    pub const fn unpack(&self) -> (HexCoord, HexCoord) {
+        (self.width, self.height)
     }
 }
 

@@ -61,17 +61,17 @@ impl HexEdge {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PrimaryHexEdge {
+pub enum NormHexEdge {
     TopRight,
     Top,
     TopLeft,
 }
 
-impl PrimaryHexEdge {
-    pub const ALL: [PrimaryHexEdge; 3] = [
-        PrimaryHexEdge::TopRight,
-        PrimaryHexEdge::Top,
-        PrimaryHexEdge::TopLeft,
+impl NormHexEdge {
+    pub const ALL: [NormHexEdge; 3] = [
+        NormHexEdge::TopRight,
+        NormHexEdge::Top,
+        NormHexEdge::TopLeft,
     ];
 
     pub fn opposite(self) -> HexEdge {
@@ -79,84 +79,104 @@ impl PrimaryHexEdge {
     }
 }
 
-impl From<PrimaryHexEdge> for HexEdge {
-    fn from(edge: PrimaryHexEdge) -> Self {
+impl From<NormHexEdge> for HexEdge {
+    fn from(edge: NormHexEdge) -> Self {
         match edge {
-            PrimaryHexEdge::TopRight => HexEdge::TopRight,
-            PrimaryHexEdge::Top => HexEdge::Top,
-            PrimaryHexEdge::TopLeft => HexEdge::TopLeft,
+            NormHexEdge::TopRight => HexEdge::TopRight,
+            NormHexEdge::Top => HexEdge::Top,
+            NormHexEdge::TopLeft => HexEdge::TopLeft,
         }
     }
 }
 
-impl TryFrom<HexEdge> for PrimaryHexEdge {
+impl TryFrom<HexEdge> for NormHexEdge {
     type Error = ();
     fn try_from(edge: HexEdge) -> Result<Self, Self::Error> {
         match edge {
-            HexEdge::TopRight => Ok(PrimaryHexEdge::TopRight),
-            HexEdge::Top => Ok(PrimaryHexEdge::Top),
-            HexEdge::TopLeft => Ok(PrimaryHexEdge::TopLeft),
+            HexEdge::TopRight => Ok(NormHexEdge::TopRight),
+            HexEdge::Top => Ok(NormHexEdge::Top),
+            HexEdge::TopLeft => Ok(NormHexEdge::TopLeft),
             _ => Err(()),
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct HexPosWithEdge {
+pub struct HexEdgePos {
     pub pos: HexPos,
-    pub edge: PrimaryHexEdge,
+    pub edge: HexEdge,
 }
 
-impl HexPosWithEdge {
-    pub fn new(pos: HexPos, edge: HexEdge) -> Self {
-        if let Ok(primary_edge) = edge.try_into() {
-            Self {
-                pos,
-                edge: primary_edge,
-            }
-        } else {
-            Self {
-                pos: pos.neighbor(edge),
-                edge: edge.opposite().try_into().unwrap(),
-            }
-        }
-    }
-
+impl HexEdgePos {
     pub fn pos(self) -> HexPos {
         self.pos
     }
 
+    pub fn u(self) -> HexCoord {
+        self.pos.u()
+    }
+
+    pub fn v(self) -> HexCoord {
+        self.pos.v()
+    }
+
     pub fn edge(self) -> HexEdge {
-        self.edge.into()
+        self.edge
     }
 
-    pub fn variants(self) -> [(HexPos, HexEdge); 2] {
-        let Self { pos, edge } = self;
-        [(pos, edge.into()), (pos.neighbor(edge), edge.opposite())]
+    pub fn pos_edge(self) -> (HexPos, HexEdge) {
+        (self.pos, self.edge)
+    }
+
+    pub fn u_v_edge(self) -> (HexCoord, HexCoord, HexEdge) {
+        (self.pos.u(), self.pos.v(), self.edge)
+    }
+
+    pub fn norm(self) -> (HexPos, NormHexEdge) {
+        if let Ok(primary_edge) = self.edge.try_into() {
+            (self.pos, primary_edge)
+        } else {
+            (
+                self.pos.neighbor(self.edge),
+                self.edge.opposite().try_into().unwrap(),
+            )
+        }
+    }
+
+    pub fn variants(self) -> [Self; 2] {
+        let (pos, edge) = self.norm();
+        [
+            (pos, edge).into(),
+            (pos.neighbor(edge), edge.opposite()).into(),
+        ]
     }
 }
 
-impl From<(HexPos, HexEdge)> for HexPosWithEdge {
-    fn from((pos, edge): (HexPos, HexEdge)) -> Self {
-        Self::new(pos, edge)
+impl<E> From<(HexCoord, HexCoord, E)> for HexEdgePos
+where
+    E: Into<HexEdge>,
+{
+    fn from((u, v, edge): (HexCoord, HexCoord, E)) -> Self {
+        Self {
+            pos: HexPos::new(u, v),
+            edge: edge.into(),
+        }
     }
 }
 
-impl From<HexPosWithEdge> for (HexPos, PrimaryHexEdge) {
-    fn from(pos_with_edge: HexPosWithEdge) -> Self {
-        let HexPosWithEdge { pos, edge } = pos_with_edge;
-        (pos, edge)
+impl<E> From<(HexPos, E)> for HexEdgePos
+where
+    E: Into<HexEdge>,
+{
+    fn from((pos, edge): (HexPos, E)) -> Self {
+        Self {
+            pos,
+            edge: edge.into(),
+        }
     }
 }
 
-impl From<HexPosWithEdge> for (HexPos, HexEdge) {
-    fn from(pos_with_edge: HexPosWithEdge) -> Self {
-        let HexPosWithEdge { pos, edge } = pos_with_edge;
-        (pos, edge.into())
-    }
-}
-
-impl Display for HexPosWithEdge {
+impl Display for HexEdgePos {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({}, {}, {:?})", self.pos.u(), self.pos.v(), self.edge)
     }
@@ -183,7 +203,7 @@ impl HexEdgeIterator {
 }
 
 impl Iterator for HexEdgeIterator {
-    type Item = HexPosWithEdge;
+    type Item = HexEdgePos;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             let pos = self.pos?;
@@ -199,7 +219,7 @@ impl Iterator for HexEdgeIterator {
                 HexEdge::BottomRight => pos.v() == 0 || pos.u() == self.width - 1,
             };
             if is_valid_edge {
-                return Some(HexPosWithEdge::new(pos, edge));
+                return Some(HexEdgePos::from((pos, edge)));
             }
         }
     }
@@ -260,35 +280,27 @@ mod tests {
         }
     }
 
+    #[test]
+    fn variants() {
+        for edge in HexEdge::ALL {
+            let edge_pos = HexEdgePos::from((0, 0, edge));
+            for variant in edge_pos.variants() {
+                assert_eq!(variant.norm(), edge_pos.norm());
+            }
+        }
+    }
+
     #[quickcheck]
     fn iterator(size: HexGridSize) {
         let mut seen_edges = HashSet::new();
         for pos in size.iter_hexes() {
             for edge in HexEdge::ALL {
-                seen_edges.insert(HexPosWithEdge::new(pos, edge));
+                seen_edges.insert(HexEdgePos::from((pos, edge)).norm());
             }
         }
-        let iter_edges = HexEdgeIterator::new(size).collect::<HashSet<_>>();
+        let iter_edges = HexEdgeIterator::new(size)
+            .map(|e| e.norm())
+            .collect::<HashSet<_>>();
         assert_eq!(seen_edges, iter_edges);
-    }
-
-    #[test]
-    fn variants() {
-        for edge in HexEdge::ALL {
-            let pos = HexPos::new(0, 0);
-            let pos_with_edge = HexPosWithEdge::new(pos, edge);
-            for (var_pos, var_edge) in pos_with_edge.variants() {
-                assert_eq!(
-                    HexPosWithEdge::new(var_pos, var_edge),
-                    HexPosWithEdge::new(pos, edge),
-                    "pos: {:?}, edge: {:?}, pos_with_edge: {:?}, var_pos: {:?}, var_edge: {:?}",
-                    pos,
-                    edge,
-                    pos_with_edge,
-                    var_pos,
-                    var_edge
-                );
-            }
-        }
     }
 }

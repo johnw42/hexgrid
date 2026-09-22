@@ -28,12 +28,6 @@ impl Display for HexPos {
     }
 }
 
-impl From<HexPos> for (HexCoord, HexCoord) {
-    fn from(pos: HexPos) -> Self {
-        (pos.0, pos.1)
-    }
-}
-
 impl HexPos {
     pub const fn new(u: HexCoord, v: HexCoord) -> Self {
         assert!((u + v) % 2 == 0, "u + v must be even");
@@ -48,7 +42,7 @@ impl HexPos {
         self.1
     }
 
-    pub const fn unpack(self) -> (HexCoord, HexCoord) {
+    pub const fn u_v(self) -> (HexCoord, HexCoord) {
         (self.0, self.1)
     }
 
