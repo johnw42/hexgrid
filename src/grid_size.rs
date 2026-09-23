@@ -44,6 +44,16 @@ impl HexGridSize {
     pub const fn unpack(&self) -> (HexCoord, HexCoord) {
         (self.width, self.height)
     }
+
+    #[cfg(test)]
+    pub fn test_sizes() -> impl Iterator<Item = Self> {
+        let mut sizes = (0..=9)
+            .flat_map(|width| (0..=9).map(move |height| (width, height)))
+            .filter_map(|(width, height)| Self::new(width, height).ok())
+            .collect::<Vec<_>>();
+        sizes.sort_by_key(|size| (size.width + size.height, size.width));
+        sizes.into_iter()
+    }
 }
 
 #[cfg(test)]

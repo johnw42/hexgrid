@@ -44,11 +44,11 @@ impl HexCornerPos {
     pub fn norm(self) -> (HexPos, NormHexCorner) {
         let pos = self.pos;
         match self.corner {
-            HexCorner::Right => (pos, NormHexCorner::Right),
+            HexCorner::Right => (pos + HexDelta::new(1, -1), NormHexCorner::TopLeft),
             HexCorner::TopRight => (pos, NormHexCorner::TopRight),
-            HexCorner::TopLeft => (pos + HexDelta::new(-1, 1), NormHexCorner::Right),
+            HexCorner::TopLeft => (pos, NormHexCorner::TopLeft),
             HexCorner::Left => (pos + HexDelta::new(-1, -1), NormHexCorner::TopRight),
-            HexCorner::BottomLeft => (pos + HexDelta::new(-1, -1), NormHexCorner::Right),
+            HexCorner::BottomLeft => (pos + HexDelta::new(0, -2), NormHexCorner::TopLeft),
             HexCorner::BottomRight => (pos + HexDelta::new(0, -2), NormHexCorner::TopRight),
         }
     }
@@ -56,15 +56,15 @@ impl HexCornerPos {
     pub fn variants(self) -> [Self; 3] {
         let (pos, corner) = self.norm();
         match corner {
-            NormHexCorner::Right => [
-                (pos, HexCorner::Right).into(),
-                (pos + HexDelta::new(1, 1), HexCorner::BottomLeft).into(),
-                (pos + HexDelta::new(1, -1), HexCorner::TopLeft).into(),
-            ],
             NormHexCorner::TopRight => [
                 (pos, HexCorner::TopRight).into(),
-                (pos + HexDelta::new(0, 2), HexCorner::BottomRight).into(),
                 (pos + HexDelta::new(1, 1), HexCorner::Left).into(),
+                (pos + HexDelta::new(0, 2), HexCorner::BottomRight).into(),
+            ],
+            NormHexCorner::TopLeft => [
+                (pos, HexCorner::TopLeft).into(),
+                (pos + HexDelta::new(0, 2), HexCorner::BottomLeft).into(),
+                (pos + HexDelta::new(-1, 1), HexCorner::Right).into(),
             ],
         }
     }

@@ -76,19 +76,19 @@ impl HexCorner {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 
 pub enum NormHexCorner {
-    Right,
     TopRight,
+    TopLeft,
 }
 
 impl NormHexCorner {
-    pub const ALL: [NormHexCorner; 2] = [NormHexCorner::Right, NormHexCorner::TopRight];
+    pub const ALL: [NormHexCorner; 2] = [NormHexCorner::TopRight, NormHexCorner::TopLeft];
 }
 
 impl From<NormHexCorner> for HexCorner {
     fn from(corner: NormHexCorner) -> Self {
         match corner {
-            NormHexCorner::Right => HexCorner::Right,
             NormHexCorner::TopRight => HexCorner::TopRight,
+            NormHexCorner::TopLeft => HexCorner::TopLeft,
         }
     }
 }
@@ -97,8 +97,8 @@ impl TryFrom<HexCorner> for NormHexCorner {
     type Error = ();
     fn try_from(corner: HexCorner) -> Result<Self, Self::Error> {
         match corner {
-            HexCorner::Right => Ok(NormHexCorner::Right),
             HexCorner::TopRight => Ok(NormHexCorner::TopRight),
+            HexCorner::TopLeft => Ok(NormHexCorner::TopLeft),
             _ => Err(()),
         }
     }
