@@ -1,33 +1,46 @@
-use crate::{HexCoord, pos::HexPos};
+use crate::{HexCoord, Sixths, pos::HexPos};
 use std::{
     fmt::Display,
     ops::{Add, Mul, Neg, Sub},
 };
 
+/// A difference of two [`HexPos`] values, represented by two rectangular
+/// coordinates (du, dv), where du + dv is always even.  The du coordinate
+/// represents the difference in the u coordinate of the two positions, and the
+/// dv coordinate represents the difference in the v coordinate of the two
+/// positions.
+///
+/// A delta is essentially a vector; it can be added, subtracted, scaled, and
+/// rotated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HexDelta(HexCoord, HexCoord);
 
 impl HexDelta {
+    /// Creates a new `HexDelta` with the given du and dv values.  The sum of du
+    /// and dv must be even, otherwise this function will panic.
     pub const fn new(du: HexCoord, dv: HexCoord) -> Self {
         assert!((du + dv) % 2 == 0, "du + dv must be even");
         Self(du, dv)
     }
 
+    /// Returns the du coordinate of the delta.
     pub const fn du(&self) -> HexCoord {
         self.0
     }
 
+    /// Returns the dv coordinate of the delta.
     pub const fn dv(&self) -> HexCoord {
         self.1
     }
 
-    pub const fn unpack(self) -> (HexCoord, HexCoord) {
+    /// Returns the du and dv coordinates of the delta as a tuple.
+    pub const fn du_dv(self) -> (HexCoord, HexCoord) {
         (self.0, self.1)
     }
 
     /// Rotates the delta by 60 degrees counterclockwise `steps` times.
-    pub const fn rotated(self, steps: HexCoord) -> Self {
-        let (du, dv) = self.unpack();
+    pub const fn rotated(self, steps: Sixths) -> Self {
+        let (du, dv) = self.du_dv();
         match steps.rem_euclid(6) {
             0 => self,
             1 => Self((du - dv) / 2, (3 * du + dv) / 2),
@@ -117,7 +130,7 @@ mod tests {
         }
 
         fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
-            let (du, dv) = self.unpack();
+            let (du, dv) = self.du_dv();
             Box::new(
                 du.shrink()
                     .zip(dv.shrink())

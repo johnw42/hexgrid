@@ -1,5 +1,3 @@
-#![allow(unused)] // TODO
-
 use crate::{
     HexCoord,
     container::HexPosContainer,
@@ -10,13 +8,8 @@ use crate::{
     grid_size::{HexCornerIterator, HexEdgeIterator, HexGridSize},
     pos::{HexPos, HexPosIterator},
 };
-use std::{
-    assert_matches,
-    cell::{Ref, RefCell, RefMut},
-    collections::HashMap,
-    sync::Arc,
-};
 
+/// A hexagonal grid of hexes, edges, and corners, with associated data for each.
 pub struct HexGrid<H, E = (), C = ()> {
     size: HexGridSize,
     even_row_size: HexCoord,
@@ -31,7 +24,7 @@ pub struct HexGrid<H, E = (), C = ()> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EdgeIndex {
+enum EdgeIndex {
     Hex(usize, NormHexEdge),
     BottomLeft(usize),
     Bottom(usize),
@@ -39,7 +32,7 @@ pub enum EdgeIndex {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CornerIndex {
+enum CornerIndex {
     Hex(usize, NormHexCorner),
     Right(usize),
     Left(usize),
@@ -53,6 +46,8 @@ struct Hex<H, E, C> {
 }
 
 impl<H, E, C> HexGrid<H, E, C> {
+    /// Creates a new `HexGrid` with the given size, and initializes the data
+    /// for each hex, edge, and corner using the provided functions.
     pub fn new(
         size: HexGridSize,
         mut hex_init: impl FnMut(HexPos) -> H,
@@ -144,9 +139,9 @@ impl<H, E, C> HexGrid<H, E, C> {
                 ))));
             }
             let num_right_edge_corners = if width % 2 == height % 2 {
-                ((height + 1) / 2)
+                (height + 1) / 2
             } else {
-                (height / 2)
+                height / 2
             };
             for i in 0..num_right_edge_corners {
                 grid.right_edge_corners
@@ -172,6 +167,8 @@ impl<H, E, C> HexGrid<H, E, C> {
         grid
     }
 
+    /// Creates a new `HexGrid` with the given size, and initializes the data
+    /// for each hex, edge, and corner using the `Default` trait.
     pub fn new_with_defaults(size: HexGridSize) -> Self
     where
         H: Default,
@@ -181,72 +178,61 @@ impl<H, E, C> HexGrid<H, E, C> {
         Self::new(size, |_| H::default(), |_| E::default(), |_| C::default())
     }
 
+    /// Returns the size of the grid.
     pub fn size(&self) -> HexGridSize {
         self.size
     }
 
+    /// Returns the width of the grid, which is roughly twice the number of hexes in each row.
     pub fn width(&self) -> HexCoord {
         self.size.width()
     }
 
+    /// Returns the height of the grid, which is roughly twice the number of hexes in each column.
     pub fn height(&self) -> HexCoord {
         self.size.height()
     }
 
+    /// Return true iff the grid contains a hex at the given position.
     pub fn has_hex(&self, pos: HexPos) -> bool {
         self.size.contains_hex(pos)
     }
 
+    /// Returns true iff the grid contains an edge at the given position.
     pub fn has_edge(&self, edge_pos: HexEdgePos) -> bool {
-        if self.has_hex(edge_pos.pos()) {
-            return true;
-        }
-
-        let (pos, edge): (HexPos, NormHexEdge) = edge_pos.norm();
-        let (u, v) = pos.u_v();
-        let (width, height) = self.size.unpack();
-
-        match edge {
-            NormHexEdge::TopRight => u == -1 && (-1..height - 1).contains(&v),
-            NormHexEdge::Top => (0..width).contains(&u) && (-1..=0).contains(&v),
-            NormHexEdge::TopLeft => u == width && (-1..height - 1).contains(&v),
-        }
+        self.size.contains_edge(edge_pos)
     }
 
+    /// Returns true iff the grid contains a corner at the given position.
     pub fn has_corner(&self, corner_pos: HexCornerPos) -> bool {
-        if self.has_hex(corner_pos.pos()) {
-            return true;
-        }
-
-        let (pos, corner): (HexPos, NormHexCorner) = corner_pos.norm();
-        let (u, v) = pos.u_v();
-        let (width, height) = self.size.unpack();
-
-        let corner_u_matches = match corner {
-            NormHexCorner::TopRight => u == -1,
-            NormHexCorner::TopLeft => u == width,
-        };
-        corner_u_matches && (-1..height - 1).contains(&v)
-            || (-2..=0).contains(&v) && (0..width).contains(&u) && height > 0
+        self.size.contains_corner(corner_pos)
     }
 
+    /// Returns an iterator over the positions of all edges in the grid.
     pub fn iter_edges(&self) -> HexEdgeIterator {
         HexEdgeIterator::new(self.size)
     }
 
+    /// Returns an iterator over the positions of all corners in the grid.
     pub fn iter_corners(&self) -> HexCornerIterator {
         HexCornerIterator::new(self.size)
     }
 
+    /// Returns a reference to the data associated with the hex at the given
+    /// position.  Panics if `has_hex(pos)` is false.
     pub fn hex(&self, pos: HexPos) -> &H {
         &self.hexes[self.hex_index(pos)].data
     }
 
+    /// Returns a mutable reference to the data associated with the hex at the
+    /// given position.  Panics if `has_hex(pos)` is false.
     pub fn hex_mut(&mut self, pos: HexPos) -> &mut H {
         let index = self.hex_index(pos);
         &mut self.hexes[index].data
     }
 
+    /// Returns a reference to the data associated with the edge at the given
+    /// position.  Panics if `has_edge(pos)` is false.
     pub fn edge(&self, pos: HexEdgePos) -> &E {
         match self.edge_index(pos) {
             EdgeIndex::Hex(index, edge) => &self.hexes[index].edges[edge as usize],
@@ -256,6 +242,8 @@ impl<H, E, C> HexGrid<H, E, C> {
         }
     }
 
+    /// Returns a mutable reference to the data associated with the edge at the
+    /// given position.  Panics if `has_edge(pos)` is false.
     pub fn edge_mut(&mut self, pos: HexEdgePos) -> &mut E {
         match self.edge_index(pos) {
             EdgeIndex::Hex(index, edge) => &mut self.hexes[index].edges[edge as usize],
@@ -265,6 +253,8 @@ impl<H, E, C> HexGrid<H, E, C> {
         }
     }
 
+    /// Returns a reference to the data associated with the corner at the given
+    /// position.  Panics if `has_corner(pos)` is false.
     pub fn corner(&self, pos: HexCornerPos) -> &C {
         match self.corner_index(pos) {
             CornerIndex::Hex(index, corner) => &self.hexes[index].corners[corner as usize],
@@ -274,6 +264,8 @@ impl<H, E, C> HexGrid<H, E, C> {
         }
     }
 
+    /// Returns a mutable reference to the data associated with the corner at the
+    /// given position.  Panics if `has_corner(pos)` is false.
     pub fn corner_mut(&mut self, pos: HexCornerPos) -> &mut C {
         match self.corner_index(pos) {
             CornerIndex::Hex(index, corner) => &mut self.hexes[index].corners[corner as usize],
@@ -283,22 +275,18 @@ impl<H, E, C> HexGrid<H, E, C> {
         }
     }
 
-    fn unchecked_hex_index(&self, pos: HexPos) -> usize {
-        let (u, v) = pos.u_v();
-        if v % 2 == 0 {
-            (u / 2 + self.even_row_size * (v / 2) + self.odd_row_size * ((v + 1) / 2)) as usize
-        } else {
-            (u / 2 + self.even_row_size * ((v + 1) / 2) + self.odd_row_size * (v / 2)) as usize
-        }
-    }
-
     fn hex_index(&self, pos: HexPos) -> usize {
         assert!(
             self.has_hex(pos),
             "Hex at position {:?} does not exist",
             pos
         );
-        self.unchecked_hex_index(pos)
+        let (u, v) = pos.u_v();
+        if v % 2 == 0 {
+            (u / 2 + self.even_row_size * (v / 2) + self.odd_row_size * ((v + 1) / 2)) as usize
+        } else {
+            (u / 2 + self.even_row_size * ((v + 1) / 2) + self.odd_row_size * (v / 2)) as usize
+        }
     }
 
     fn edge_index(&self, edge_pos: HexEdgePos) -> EdgeIndex {
@@ -339,7 +327,7 @@ impl<H, E, C> HexGrid<H, E, C> {
 
         let (pos, corner) = corner_pos.norm();
         let (u, v) = pos.u_v();
-        let (width, height) = self.size.unpack();
+        let width = self.size.width();
         if self.has_hex(pos) {
             CornerIndex::Hex(self.hex_index(pos), corner)
         } else if u == -1 && corner == NormHexCorner::TopRight {
@@ -362,6 +350,7 @@ impl<H, E, C> HexGrid<H, E, C> {
 }
 
 impl<H, E, C> Default for HexGrid<H, E, C> {
+    /// Creates a new grid with size 0 by 0.
     fn default() -> Self {
         Self::new(
             HexGridSize::default(),
@@ -395,7 +384,6 @@ impl<H, E, C> HexPosContainer for HexGrid<H, E, C> {
 mod tests {
     use super::*;
     use quickcheck_macros::quickcheck;
-    use std::collections::HashSet;
 
     #[quickcheck]
     fn index(size: HexGridSize) {

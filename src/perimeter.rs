@@ -1,6 +1,7 @@
 use crate::{container::HexPosContainer, edge::HexEdge, edge_pos::HexEdgePos, pos::HexPos};
 use std::collections::HashSet;
 
+/// An iterator that yields the edges on the perimeter of a collection of hexagons.
 pub struct HexPerimeterIterator<'c, C: HexPosContainer> {
     container: &'c C,
     hex_iter: Option<C::Iterator<'c>>,
@@ -28,6 +29,11 @@ impl<'c, C> HexPerimeterIterator<'c, C>
 where
     C: HexPosContainer,
 {
+    /// Creates a new perimeter iterator for the given container of hexagons.
+    /// This will find all edges along the perimeter of each contiguous group of
+    /// hexagons in the container, and yield each edge exactly once.  If the a
+    /// region contains holes, the edges along the perimeter of the holes will
+    /// also be yielded.
     pub fn new(container: &'c C) -> Self {
         Self {
             container,
@@ -39,6 +45,11 @@ where
         }
     }
 
+    /// Creates a new perimeter iterator for the given container of hexagons.
+    /// This will find all edges along the perimeter of the contiguous group of
+    /// hexagons that contains the given starting hexagon, and yield each edge
+    /// exactly once.  If the region contains holes, the edges along the
+    /// perimeter of the holes will not be yielded.
     pub fn new_from(starting_hex: HexPos, container: &'c C) -> Self {
         let starting_edge = HexEdge::ALL
             .into_iter()
@@ -156,7 +167,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{grid::HexGrid, grid_size::HexGridSize};
+    use crate::grid_size::HexGridSize;
     use quickcheck::Arbitrary;
     use quickcheck_macros::quickcheck;
 
@@ -204,6 +215,8 @@ mod tests {
         result
     }
 
+    /// An arbitrary container of hexagons, which may or may not be contiguous,
+    /// and may or may not contain holes.
     #[derive(Debug, Clone)]
     struct TestHexPosContainer {
         hexes: HashSet<HexPos>,
@@ -213,13 +226,13 @@ mod tests {
     impl Arbitrary for TestHexPosContainer {
         fn arbitrary(g: &mut quickcheck::Gen) -> Self {
             let size = HexGridSize::arbitrary(g);
-            let mut hexes = HashSet::new();
-            for pos in HexGrid::<()>::new_with_defaults(size).iter_hexes() {
-                if bool::arbitrary(g) {
-                    hexes.insert(pos);
-                }
+            TestHexPosContainer {
+                hexes: size
+                    .iter_hexes()
+                    .filter(|_| u32::arbitrary(g) % 3 > 0)
+                    .collect(),
+                size,
             }
-            TestHexPosContainer { hexes, size }
         }
 
         fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
@@ -237,6 +250,8 @@ mod tests {
         }
     }
 
+    /// A group of hexagons that are contiguous, meaning that each hexagon in
+    /// the group is adjacent to at least one other hexagon in the group.
     #[derive(Debug, Clone)]
     struct ContiguousHexPosContainer {
         hexes: Vec<HexPos>,

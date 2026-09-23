@@ -10,6 +10,12 @@ use std::{
     ops::{Add, Sub},
 };
 
+/// A struct representing a position of a corner of a hexagon in a hexagonal
+/// grid.
+///
+/// Each corner has three possible representations, which are equivalent. The
+/// `norm` method returns a normalized representation of the corner position,
+/// which is unique for each corner.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HexCornerPos {
     pub pos: HexPos,
@@ -17,30 +23,39 @@ pub struct HexCornerPos {
 }
 
 impl HexCornerPos {
+    /// Returns the u coordinate of the hexagon position.
     pub fn u(self) -> HexCoord {
         self.pos.u()
     }
 
+    /// Returns the v coordinate of the hexagon position.
     pub fn v(self) -> HexCoord {
         self.pos.v()
     }
 
+    /// Returns the `HexPos` of the hexagon position.
     pub fn pos(self) -> HexPos {
         self.pos
     }
 
+    /// Returns the `HexCorner` of the corner position.
     pub fn corner(self) -> HexCorner {
         self.corner
     }
 
+    /// Returns the `HexPos` and `HexCorner` of the corner position as a tuple.
     pub fn pos_corner(self) -> (HexPos, HexCorner) {
         (self.pos, self.corner)
     }
 
+    /// Returns the u and v coordinates of the hexagon position and the
+    /// `HexCorner` of the corner position as a tuple.
     pub fn u_v_corner(self) -> (HexCoord, HexCoord, HexCorner) {
         (self.pos.u(), self.pos.v(), self.corner)
     }
 
+    /// Returns a normalized representation of the corner position, which is
+    /// unique for each corner.
     pub fn norm(self) -> (HexPos, NormHexCorner) {
         let pos = self.pos;
         match self.corner {
@@ -53,6 +68,8 @@ impl HexCornerPos {
         }
     }
 
+    /// Returns the three equivalent representations of the corner position, for which
+    /// `norm` returns the same value.
     pub fn variants(self) -> [Self; 3] {
         let (pos, corner) = self.norm();
         match corner {

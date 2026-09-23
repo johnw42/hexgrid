@@ -1,6 +1,8 @@
 use crate::{HexCoord, container::HexPosContainer, delta::HexDelta, id::HexId, pos::HexPos};
 use std::collections::HashSet;
 
+/// A collection of hexagons, edges, or corners that can be manipulated as a
+/// group.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct HexGroup<H = HexPos>(HashSet<H>)
 where
@@ -10,34 +12,46 @@ impl<H> HexGroup<H>
 where
     H: HexId,
 {
+    /// Creates a new empty `HexGroup`.
     pub fn new() -> Self {
         Self(HashSet::new())
     }
 
+    /// Creates a new `HexGroup` with the given capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         Self(HashSet::with_capacity(capacity))
     }
 
+    /// Returns true if the group contains the given hexagon, edge, or corner.
     pub fn contains(&self, pos: H) -> bool {
         self.0.contains(&pos)
     }
 
+    /// Returns the number of elements in the group.
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
+    /// Returns true if the group contains no elements.
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
+    /// Inserts the given hexagon, edge, or corner into the group.  Returns true if
+    /// the element was not already present in the group, and false if it was
+    /// already present.
     pub fn insert(&mut self, pos: H) -> bool {
         self.0.insert(pos)
     }
 
+    /// Removed an item from the group.  Returns true if the item was present in
+    /// the group, and false if it was not.
     pub fn remove(&mut self, pos: &H) -> bool {
         self.0.remove(pos)
     }
 
+    /// Returns a new group with all items rotated around the given center by
+    /// the given number of 60 degree steps.
     pub fn rotate_around(self, center: HexPos, steps: HexCoord) -> Self {
         Self(
             self.0
@@ -47,6 +61,7 @@ where
         )
     }
 
+    /// Returns a new group with all items shifted by the given delta.
     pub fn shift(self, delta: HexDelta) -> Self {
         Self(self.0.into_iter().map(|pos| pos.shift(delta)).collect())
     }

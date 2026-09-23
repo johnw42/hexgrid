@@ -16,7 +16,7 @@ fn main() {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-enum Selection {
+enum InitSelection {
     None,
     Owned,
     Perimeter,
@@ -54,20 +54,30 @@ impl GridSelection {
             if grid.hex(pos).is_active {
                 result.hexes.insert(pos);
             }
-            for edge in HexEdge::ALL {
-                let edge_pos = HexEdgePos::from((pos, edge));
-                if grid.edge(edge_pos).is_active {
-                    result.edges.insert(edge_pos);
-                }
+        }
+        for edge in grid.iter_edges() {
+            if grid.edge(edge).is_active {
+                result.edges.insert(edge);
             }
-            for corner in HexCorner::ALL {
-                let corner_pos = HexCornerPos::from((pos, corner));
-                if grid.corner(corner_pos).is_active {
-                    result.corners.insert(corner_pos);
-                }
+        }
+        for corner in grid.iter_corners() {
+            if grid.corner(corner).is_active {
+                result.corners.insert(corner);
             }
         }
         result
+    }
+
+    fn apply_to(&self, grid: &mut DemoGrid) {
+        for pos in grid.iter_hexes() {
+            grid.hex_mut(pos).is_active = self.hexes.contains(pos);
+        }
+        for edge in grid.iter_edges() {
+            grid.edge_mut(edge).is_active = self.edges.contains(edge);
+        }
+        for corner in grid.iter_corners() {
+            grid.corner_mut(corner).is_active = self.corners.contains(corner);
+        }
     }
 }
 
@@ -75,9 +85,9 @@ struct DemoApp {
     id: egui::Id,
     width: HexCoord,
     height: HexCoord,
-    selection: Selection,
+    selection: InitSelection,
     grid: Option<DemoGrid>,
-    grid_selection: Option<Selection>,
+    grid_selection: Option<InitSelection>,
     perimeter_animation: Vec<HexEdgePos>,
 }
 const INIT_WIDTH: HexCoord = 7;
@@ -95,7 +105,7 @@ impl DemoApp {
             id,
             width: INIT_WIDTH,
             height: INIT_HEIGHT,
-            selection: Selection::None,
+            selection: InitSelection::None,
             grid: None,
             grid_selection: None,
             perimeter_animation: Vec::new(),
@@ -113,12 +123,12 @@ impl DemoApp {
                 },
                 |edge| GridContent {
                     init_param: edge,
-                    is_active: self.selection == Selection::Owned
+                    is_active: self.selection == InitSelection::Owned
                         && size.contains_hex(edge.norm().0),
                 },
                 |corner| GridContent {
                     init_param: corner,
-                    is_active: self.selection == Selection::Owned
+                    is_active: self.selection == InitSelection::Owned
                         && size.contains_hex(corner.norm().0),
                 },
             )
@@ -127,11 +137,11 @@ impl DemoApp {
         if self.grid.is_some() {
             self.grid_selection = Some(self.selection);
             match self.selection {
-                Selection::None | Selection::Owned => {}
-                Selection::Perimeter => {
+                InitSelection::None | InitSelection::Owned => {}
+                InitSelection::Perimeter => {
                     self.select_perimeter();
                 }
-                Selection::PerimeterFromOrigin => {
+                InitSelection::PerimeterFromOrigin => {
                     self.select_perimeter_from_origin(ctx);
                 }
             }
@@ -189,12 +199,12 @@ impl eframe::App for DemoApp {
             ui.label(format!("Grid size: {} x {}", self.width, self.height));
             ui.horizontal(|ui| {
                 ui.label("Initial selection:");
-                ui.radio_value(&mut self.selection, Selection::None, "None");
-                ui.radio_value(&mut self.selection, Selection::Owned, "Owned");
-                ui.radio_value(&mut self.selection, Selection::Perimeter, "Perimeter");
+                ui.radio_value(&mut self.selection, InitSelection::None, "None");
+                ui.radio_value(&mut self.selection, InitSelection::Owned, "Owned");
+                ui.radio_value(&mut self.selection, InitSelection::Perimeter, "Perimeter");
                 ui.radio_value(
                     &mut self.selection,
-                    Selection::PerimeterFromOrigin,
+                    InitSelection::PerimeterFromOrigin,
                     "Perimeter from Origin",
                 );
             });
@@ -274,8 +284,9 @@ impl<'a> HexView<'a> {
             );
             grid.hex_mut(hover_hex).toggle();
             match self.app.selection {
-                Selection::None | Selection::Owned | Selection::PerimeterFromOrigin => {}
-                Selection::Perimeter => {
+                InitSelection::None | InitSelection::Owned | InitSelection::PerimeterFromOrigin => {
+                }
+                InitSelection::Perimeter => {
                     self.app.select_perimeter();
                 }
             }

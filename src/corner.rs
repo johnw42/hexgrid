@@ -1,6 +1,9 @@
-use crate::edge::HexEdge;
-use std::f32::consts::{FRAC_PI_3, PI};
+use crate::{Cartesian, Radians, Sixths, edge::HexEdge};
+use std::f32::consts::FRAC_PI_3;
 
+/// Identifier for a corner of a hexagon, represented as an enum with six
+/// variants corresponding to the six corners of a hexagon and the integers 0 to
+/// 5, numbered in counter-clockwise order starting from the right corner.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HexCorner {
     Right,
@@ -12,6 +15,15 @@ pub enum HexCorner {
 }
 
 impl HexCorner {
+    /// All corners in counter-clockwise order.
+    ///
+    /// ```
+    /// use hexgrid::HexCorner;
+    ///
+    /// for corner in HexCorner::ALL {
+    ///     assert_eq!(corner, HexCorner::ALL[corner as usize]);
+    /// }
+    /// ```
     pub const ALL: [HexCorner; 6] = [
         HexCorner::Right,
         HexCorner::TopRight,
@@ -21,40 +33,78 @@ impl HexCorner {
         HexCorner::BottomRight,
     ];
 
+    /// Returns true iff the given edge touches this corner.
     pub fn touches_edge(self, edge: HexEdge) -> bool {
         edge.touches_corner(self)
     }
 
+    /// Returns the result of rotating this corner by the given number of steps,
+    /// where each step is a 60 degree rotation counter-clockwise.  The number
+    /// of steps can be negative, in which case the rotation is clockwise.
     pub fn rotate(self, steps: i32) -> HexCorner {
         Self::ALL[(self as i32 + steps).rem_euclid(6) as usize]
     }
 
+    /// Returns the corner that is opposite this corner, which is the result of
+    /// rotating this corner by 180 degrees.
     pub fn opposite(self) -> Self {
         self.rotate(3)
     }
 
-    pub fn steps_to(self, other: HexCorner) -> i32 {
+    /// Returns a number in the range -2..=3 indicating how many steps you would
+    /// need to rotate this corner to get to the other corner.
+    ///
+    /// ```
+    /// use hexgrid::HexCorner;
+    ///
+    /// for corner in HexCorner::ALL {
+    ///     for other in HexCorner::ALL {
+    ///         let steps = corner.steps_to(other);
+    ///         assert_eq!(corner.rotate(steps), other);
+    ///     }
+    /// }
+    /// ```
+    pub fn steps_to(self, other: HexCorner) -> Sixths {
         let diff = (other as i32 - self as i32).rem_euclid(6);
         if diff > 3 { diff - 6 } else { diff }
     }
 
-    pub fn to_angle(self) -> f32 {
-        match self {
-            HexCorner::Right => 0.0,
-            HexCorner::TopRight => FRAC_PI_3,
-            HexCorner::TopLeft => 2.0 * FRAC_PI_3,
-            HexCorner::Left => PI,
-            HexCorner::BottomLeft => -2.0 * FRAC_PI_3,
-            HexCorner::BottomRight => -FRAC_PI_3,
-        }
+    /// Converts the number of steps to rotate this corner to the other corner into an angle in radians.
+    pub fn steps_to_angle(steps: Sixths) -> Radians {
+        steps as Radians * FRAC_PI_3
     }
 
-    pub fn offset_from_center(self, radius: f32) -> (f32, f32) {
+    /// Assuming a hexagon centered at the origin, returns the angle in radians
+    /// of this corner from the center of the hexagon, as measured
+    /// counter-clockwise from the positive u-axis.
+    pub fn to_angle(self) -> Radians {
+        Self::steps_to_angle(self as Sixths)
+    }
+
+    /// Assuming a hexagon centered at the origin, returns the Cartesian
+    /// coordinates of this corner from the center of the hexagon, as measured
+    /// counter-clockwise from the positive u-axis, assuming the width of the
+    /// hexagon is 1.0 unit.
+    pub fn offset_from_center(self) -> Cartesian {
         let angle = self.to_angle();
-        (radius * angle.cos(), radius * angle.sin())
+        (angle.cos(), angle.sin())
     }
 
-    pub fn from_angle(angle: f32) -> HexCorner {
+    /// Converts an angle in radians, as returned by `to_angle`, into the
+    /// nearest corresponding corner of a hexagon.
+    ///
+    /// ```
+    /// use hexgrid::{Radians, HexCorner};
+    /// use std::f32::consts::PI;
+    ///
+    /// let epsilon: Radians = 0.01;
+    /// for tweak in [-PI/6.0 + epsilon, 0.0, PI/6.0 - epsilon] {
+    ///     for corner in HexCorner::ALL {
+    ///         assert_eq!(corner, HexCorner::from_angle(corner.to_angle() + tweak));
+    ///     }
+    /// }
+    /// ```
+    pub fn from_angle(angle: Radians) -> HexCorner {
         Self::Right.rotate((angle / FRAC_PI_3).round() as i32)
     }
 
@@ -73,14 +123,24 @@ impl HexCorner {
     }
 }
 
+/// A set of possible values of `HexCorner` that are used by the `norm` method
+/// to provide a unique representation of a corner position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-
 pub enum NormHexCorner {
     TopRight,
     TopLeft,
 }
 
 impl NormHexCorner {
+    /// All normalized corners in counter-clockwise order.
+    ///
+    /// ```
+    /// use hexgrid::NormHexCorner;
+    ///
+    /// for corner in NormHexCorner::ALL {
+    ///     assert_eq!(corner, NormHexCorner::ALL[corner as usize]);
+    /// }
+    /// ```
     pub const ALL: [NormHexCorner; 2] = [NormHexCorner::TopRight, NormHexCorner::TopLeft];
 }
 

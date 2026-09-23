@@ -1,11 +1,11 @@
 pub use crate::{
     container::HexPosContainer,
-    corner::HexCorner,
+    corner::{HexCorner, NormHexCorner},
     corner_pos::HexCornerPos,
-    edge::HexEdge,
+    edge::{HexEdge, NormHexEdge},
     edge_pos::HexEdgePos,
     grid::HexGrid,
-    grid_size::HexGridSize,
+    grid_size::{HexGridSize, HexGridSizeError},
     group::HexGroup,
     perimeter::HexPerimeterIterator,
     pos::{HexPos, NearestCorner, NearestEdge},
@@ -31,8 +31,16 @@ pub type HexCoord = i32;
 /// width of a hexagon is 1.0 unit, and the height of a hexagon is sqrt(3)/2 units.
 pub type Distance = f32;
 
+/// Type of an angle measured in sixths of a full circle, assuming the positive
+/// direction is counter-clockwise.
+pub type Sixths = i32;
+
 /// A point in Cartesian coordinates, represented as a pair (x, y) of `Distance` values.
 pub type Cartesian = (Distance, Distance);
+
+/// Type of an angle measured in radians, assuming the positive direction is
+/// counter-clockwise from the positive u-axis.
+pub type Radians = f32;
 
 /// The width of a hexagon in Cartesian coordinates, which is 1.0 unit.
 pub const HEX_WIDTH: Distance = 1.0;

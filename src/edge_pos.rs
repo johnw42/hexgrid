@@ -7,6 +7,12 @@ use crate::{
 };
 use std::fmt::Display;
 
+/// A struct representing a position of an edge of a hexagon in a hexagonal
+/// grid.
+///
+/// Each edge has two possible representations, which are equivalent. The
+/// `norm` method returns a normalized representation of the edge position,
+/// which is unique for each edge.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HexEdgePos {
     pub pos: HexPos,
@@ -14,30 +20,39 @@ pub struct HexEdgePos {
 }
 
 impl HexEdgePos {
+    /// Returns the `HexPos` of the hexagon position.
     pub fn pos(self) -> HexPos {
         self.pos
     }
 
+    /// Returns the u coordinate of the hexagon position.
     pub fn u(self) -> HexCoord {
         self.pos.u()
     }
 
+    /// Returns the v coordinate of the hexagon position.
     pub fn v(self) -> HexCoord {
         self.pos.v()
     }
 
+    /// Returns the `HexEdge` of the edge position.
     pub fn edge(self) -> HexEdge {
         self.edge
     }
 
+    /// Returns the `HexPos` and `HexEdge` of the edge position as a tuple.
     pub fn pos_edge(self) -> (HexPos, HexEdge) {
         (self.pos, self.edge)
     }
 
+    /// Returns the u and v coordinates of the hexagon position and the
+    /// `HexEdge` of the edge position as a tuple.
     pub fn u_v_edge(self) -> (HexCoord, HexCoord, HexEdge) {
         (self.pos.u(), self.pos.v(), self.edge)
     }
 
+    /// Returns a normalized representation of the edge position, which is
+    /// unique for each edge.
     pub fn norm(self) -> (HexPos, NormHexEdge) {
         if let Ok(primary_edge) = self.edge.try_into() {
             (self.pos, primary_edge)
@@ -49,6 +64,8 @@ impl HexEdgePos {
         }
     }
 
+    /// Returns the two equivalent representations of the edge position, for which
+    /// `norm` returns the same value.
     pub fn variants(self) -> [Self; 2] {
         let (pos, edge) = self.norm();
         [
