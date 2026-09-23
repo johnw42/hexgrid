@@ -46,6 +46,14 @@ impl HexGridSize {
         (self.width, self.height)
     }
 
+    pub const fn even_row_size(&self) -> HexCoord {
+        1 + (self.width - 1) / 2
+    }
+
+    pub const fn odd_row_size(&self) -> HexCoord {
+        self.width / 2
+    }
+
     #[cfg(test)]
     pub fn test_sizes() -> impl Iterator<Item = Self> {
         let mut sizes = (0..=9)
@@ -234,6 +242,11 @@ mod tests {
         .filter_map(|(w, h)| HexGridSize::new(w, h).ok())
         .collect();
         assert_eq!(shrunk_sizes, expected_sizes);
+    }
+
+    #[quickcheck]
+    fn len(size: HexGridSize) {
+        assert_eq!(size.len(), size.iter_hexes().count());
     }
 
     #[quickcheck]

@@ -59,14 +59,10 @@ impl<H, E, C> HexGrid<H, E, C> {
         mut edge_init: impl FnMut(HexEdgePos) -> E,
         mut corner_init: impl FnMut(HexCornerPos) -> C,
     ) -> Self {
-        let (width, height) = size.unpack();
-        let even_row_size = 1 + (width - 1) / 2;
-        let odd_row_size = width / 2;
-
         let mut grid = HexGrid {
             size,
-            even_row_size,
-            odd_row_size,
+            even_row_size: size.even_row_size(),
+            odd_row_size: size.odd_row_size(),
             hexes: Vec::new(),
             bottom_left_edges: Vec::new(),
             bottom_edges: Vec::new(),
@@ -75,6 +71,8 @@ impl<H, E, C> HexGrid<H, E, C> {
             left_edge_corners: Vec::new(),
             bottom_edge_corners: Vec::new(),
         };
+
+        let (width, height) = size.unpack();
 
         if width > 0 && height > 0 {
             grid.hexes.reserve_exact(size.len());
@@ -93,6 +91,7 @@ impl<H, E, C> HexGrid<H, E, C> {
                 };
                 grid.hexes.push(hex);
             }
+
             for i in 0..((height + 1) / 2) {
                 grid.bottom_left_edges.push(edge_init(HexEdgePos::from((
                     0,
