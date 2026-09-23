@@ -1,5 +1,5 @@
 use eframe::egui;
-use egui::Pos2;
+use egui::{Pos2, accesskit::HasPopup::Grid};
 use hexgrid::{
     Cartesian, Distance, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord, HexCorner,
     HexCornerPos, HexEdge, HexEdgePos, HexGrid, HexGridSize, HexGroup, HexPerimeterIterator,
@@ -9,7 +9,7 @@ use hexgrid::{
 fn main() {
     let native_options = eframe::NativeOptions::default();
     let _ = eframe::run_native(
-        "My egui App",
+        "hexgrid demo",
         native_options,
         Box::new(|cc| Ok(Box::new(DemoApp::new(cc)))),
     );
@@ -37,6 +37,7 @@ impl<T> GridContent<T> {
 
 type DemoGrid = HexGrid<GridContent<HexPos>, GridContent<HexEdgePos>, GridContent<HexCornerPos>>;
 
+#[derive(Debug, Default, Clone)]
 struct GridSelection {
     hexes: HexGroup<HexPos>,
     edges: HexGroup<HexEdgePos>,
@@ -70,24 +71,50 @@ impl GridSelection {
 
     fn apply_to(&self, grid: &mut DemoGrid) {
         for pos in grid.iter_hexes() {
-            grid.hex_mut(pos).is_active = self.hexes.contains(pos);
+            grid.hex_mut(pos).is_active = false;
         }
         for edge in grid.iter_edges() {
-            grid.edge_mut(edge).is_active = self.edges.contains(edge);
+            grid.edge_mut(edge).is_active = false;
         }
         for corner in grid.iter_corners() {
-            grid.corner_mut(corner).is_active = self.corners.contains(corner);
+            grid.corner_mut(corner).is_active = false;
+        }
+        for pos in &self.hexes {
+            if grid.has_hex(*pos) {
+                grid.hex_mut(*pos).is_active = true;
+            }
+        }
+        for edge in &self.edges {
+            if grid.has_edge(*edge) {
+                grid.edge_mut(*edge).is_active = true;
+            }
+        }
+        for corner in &self.corners {
+            if grid.has_corner(*corner) {
+                grid.corner_mut(*corner).is_active = true;
+            }
+        }
+    }
+
+    fn rotate_around(self, center: HexPos, steps: HexCoord) -> Self {
+        Self {
+            hexes: self.hexes.rotate_around(center, steps),
+            edges: self.edges.rotate_around(center, steps),
+            corners: self.corners.rotate_around(center, steps),
         }
     }
 }
+
+type HoverState = Option<(HexPos, Option<HexEdge>, Option<HexCorner>)>;
 
 struct DemoApp {
     id: egui::Id,
     width: HexCoord,
     height: HexCoord,
-    selection: InitSelection,
+    init_selection: InitSelection,
     grid: Option<DemoGrid>,
-    grid_selection: Option<InitSelection>,
+    hover: HoverState,
+    grid_selection: GridSelection,
     perimeter_animation: Vec<HexEdgePos>,
 }
 const INIT_WIDTH: HexCoord = 7;
@@ -105,9 +132,10 @@ impl DemoApp {
             id,
             width: INIT_WIDTH,
             height: INIT_HEIGHT,
-            selection: InitSelection::None,
+            init_selection: InitSelection::None,
             grid: None,
-            grid_selection: None,
+            hover: None,
+            grid_selection: GridSelection::default(),
             perimeter_animation: Vec::new(),
         }
     }
@@ -123,20 +151,20 @@ impl DemoApp {
                 },
                 |edge| GridContent {
                     init_param: edge,
-                    is_active: self.selection == InitSelection::Owned
+                    is_active: self.init_selection == InitSelection::Owned
                         && size.contains_hex(edge.norm().0),
                 },
                 |corner| GridContent {
                     init_param: corner,
-                    is_active: self.selection == InitSelection::Owned
+                    is_active: self.init_selection == InitSelection::Owned
                         && size.contains_hex(corner.norm().0),
                 },
             )
         });
 
-        if self.grid.is_some() {
-            self.grid_selection = Some(self.selection);
-            match self.selection {
+        if let Some(grid) = self.grid.as_ref() {
+            self.grid_selection = GridSelection::new(grid);
+            match self.init_selection {
                 InitSelection::None | InitSelection::Owned => {}
                 InitSelection::Perimeter => {
                     self.select_perimeter();
@@ -149,15 +177,16 @@ impl DemoApp {
     }
 
     fn select_perimeter(&mut self) {
-        if self.grid.is_some() {
-            self.clear_edge_and_corner_selection();
-            let grid = self.grid.as_mut().unwrap();
+        self.clear_edge_and_corner_selection();
+        if let Some(grid) = self.grid.as_mut() {
             let unselected_hexes = grid
                 .iter_hexes()
                 .filter(|&pos| !grid.hex(pos).is_active)
                 .collect::<Vec<_>>();
+            self.grid_selection = GridSelection::default();
             for edge_pos in HexPerimeterIterator::new(&unselected_hexes) {
                 grid.edge_mut(edge_pos).is_active = true;
+                self.grid_selection.edges.insert(edge_pos);
             }
         }
     }
@@ -183,10 +212,72 @@ impl DemoApp {
             }
         }
     }
+
+    fn on_grid_clicked(&mut self) {
+        if self.grid.is_none() {
+            return;
+        }
+        match self.hover {
+            Some((hover_hex, _, Some(hover_corner))) => {
+                let grid = self.grid.as_mut().unwrap();
+                let hover_corner = HexCornerPos::from((hover_hex, hover_corner));
+                eprintln!(
+                    "Clicked corner {}; init_param: {}",
+                    hover_corner,
+                    grid.corner(hover_corner).init_param
+                );
+                // eprintln!(
+                //     "corner_index: {:?}",
+                //     grid.corner_index(corner_pos.pos(), corner_pos.corner())
+                // );
+                grid.corner_mut(hover_corner).toggle();
+            }
+            Some((hover_hex, Some(hover_edge), None)) => {
+                let grid = self.grid.as_mut().unwrap();
+                let hover_edge = HexEdgePos::from((hover_hex, hover_edge));
+                eprintln!(
+                    "Clicked edge {}; init_param: {}",
+                    hover_edge,
+                    grid.edge(hover_edge).init_param
+                );
+                grid.edge_mut(hover_edge).toggle();
+            }
+            Some((hover_hex, None, None)) => {
+                let grid = self.grid.as_mut().unwrap();
+                eprintln!(
+                    "Clicked hex {}; init_param: {}",
+                    hover_hex,
+                    grid.hex(hover_hex).init_param
+                );
+                grid.hex_mut(hover_hex).toggle();
+                match self.init_selection {
+                    InitSelection::None
+                    | InitSelection::Owned
+                    | InitSelection::PerimeterFromOrigin => {}
+                    InitSelection::Perimeter => {
+                        self.select_perimeter();
+                    }
+                }
+            }
+            _ => (),
+        }
+        self.grid_selection = GridSelection::new(self.grid.as_ref().unwrap());
+    }
+
+    fn on_secondary_grid_clicked(&mut self) {
+        if self.grid.is_some()
+            && let Some((hover_hex, _, _)) = self.hover
+        {
+            self.grid_selection = self.grid_selection.clone().rotate_around(hover_hex, 1);
+            self.grid_selection.apply_to(self.grid.as_mut().unwrap());
+        }
+    }
 }
 
 impl eframe::App for DemoApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let old_init_selection = self.init_selection;
+
         egui::CentralPanel::default().show(ui, |ui| {
             egui::Grid::new("my_grid").show(ui, |ui| {
                 ui.label("Width");
@@ -199,11 +290,15 @@ impl eframe::App for DemoApp {
             ui.label(format!("Grid size: {} x {}", self.width, self.height));
             ui.horizontal(|ui| {
                 ui.label("Initial selection:");
-                ui.radio_value(&mut self.selection, InitSelection::None, "None");
-                ui.radio_value(&mut self.selection, InitSelection::Owned, "Owned");
-                ui.radio_value(&mut self.selection, InitSelection::Perimeter, "Perimeter");
+                ui.radio_value(&mut self.init_selection, InitSelection::None, "None");
+                ui.radio_value(&mut self.init_selection, InitSelection::Owned, "Owned");
                 ui.radio_value(
-                    &mut self.selection,
+                    &mut self.init_selection,
+                    InitSelection::Perimeter,
+                    "Perimeter",
+                );
+                ui.radio_value(
+                    &mut self.init_selection,
                     InitSelection::PerimeterFromOrigin,
                     "Perimeter from Origin",
                 );
@@ -213,17 +308,26 @@ impl eframe::App for DemoApp {
                 .grid
                 .as_ref()
                 .is_none_or(|g| g.width() != self.width || g.height() != self.height)
-                || self.grid_selection != Some(self.selection)
+                || self.init_selection != old_init_selection
             {
                 self.create_grid(ui.ctx());
             }
 
-            if self.grid.is_some() {
+            if let Some(grid) = self.grid.as_ref() {
                 ui.separator();
-                ui.add(HexView {
+                let hex_view = HexView {
                     scale: 50.0,
-                    app: self,
-                });
+                    grid,
+                    hover: &mut self.hover,
+                };
+                let response = ui.add(hex_view);
+
+                if response.clicked() {
+                    self.on_grid_clicked();
+                }
+                if response.secondary_clicked() {
+                    self.on_secondary_grid_clicked();
+                }
             } else {
                 ui.label("Invalid grid size");
             }
@@ -243,67 +347,22 @@ impl eframe::App for DemoApp {
 }
 struct HexView<'a> {
     scale: f32,
-    app: &'a mut DemoApp,
+    grid: &'a DemoGrid,
+    hover: &'a mut HoverState,
 }
 
 fn reflect_vertical((x, y): Cartesian) -> Cartesian {
     (x, -y)
 }
 
-impl<'a> HexView<'a> {
-    fn on_click(
-        &mut self,
-        hover_hex: HexPos,
-        hover_edge: Option<HexEdgePos>,
-        hover_corner: Option<HexCornerPos>,
-    ) {
-        let grid = self.app.grid.as_mut().unwrap();
-        if let Some(hover_corner) = hover_corner {
-            eprintln!(
-                "Clicked corner {}; init_param: {}",
-                hover_corner,
-                grid.corner(hover_corner).init_param
-            );
-            // eprintln!(
-            //     "corner_index: {:?}",
-            //     grid.corner_index(corner_pos.pos(), corner_pos.corner())
-            // );
-            grid.corner_mut(hover_corner).toggle();
-        } else if let Some(hover_edge) = hover_edge {
-            eprintln!(
-                "Clicked edge {}; init_param: {}",
-                hover_edge,
-                grid.edge(hover_edge).init_param
-            );
-            grid.edge_mut(hover_edge).toggle();
-        } else {
-            eprintln!(
-                "Clicked hex {}; init_param: {}",
-                hover_hex,
-                grid.hex(hover_hex).init_param
-            );
-            grid.hex_mut(hover_hex).toggle();
-            match self.app.selection {
-                InitSelection::None | InitSelection::Owned | InitSelection::PerimeterFromOrigin => {
-                }
-                InitSelection::Perimeter => {
-                    self.app.select_perimeter();
-                }
-            }
-        }
-    }
-
-    fn on_secondary_click(&mut self, hover_hex: HexPos) {}
-}
+impl<'a> HexView<'a> {}
 
 impl<'g> egui::Widget for HexView<'g> {
-    fn ui(mut self, ui: &mut egui::Ui) -> egui::Response {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::click());
         let painter = ui.painter_at(rect);
 
-        let HexView { scale, .. } = self;
-
-        let grid = self.app.grid.as_ref().unwrap();
+        let HexView { scale, grid, .. } = self;
 
         let rect_offset = rect.center().to_vec2()
             - egui::vec2(
@@ -322,9 +381,10 @@ impl<'g> egui::Widget for HexView<'g> {
             .ctx()
             .input(|input| input.pointer.latest_pos())
             .map(widget_to_hex);
-        let hover_hex = latest_pos
+        *self.hover = latest_pos
             .map(HexPos::from_center)
-            .filter(|&pos| grid.has_hex(pos));
+            .filter(|&pos| grid.has_hex(pos))
+            .map(|hover_hex| (hover_hex, None, None));
 
         let paint_edge_line = |pos: HexPos, edge: HexEdge, size: f32, color: egui::Color32| {
             let [corner1, corner2] = edge.ends();
@@ -347,7 +407,7 @@ impl<'g> egui::Widget for HexView<'g> {
                     .into_iter()
                     .map(|corner| hex_to_widget(pos.corner_pos(corner)))
                     .collect(),
-                if hover_hex == Some(pos) {
+                if self.hover.map(|(hex, _, _)| hex) == Some(pos) {
                     egui::Color32::RED
                 } else if grid.hex(pos).is_active {
                     egui::Color32::BLUE
@@ -378,49 +438,27 @@ impl<'g> egui::Widget for HexView<'g> {
             }
         }
 
-        let mut hover_edge = None;
-        let mut hover_corner = None;
-        if let Some(hover_hex) = hover_hex {
+        if let Some((hover_hex, hover_edge, hover_corner)) = self.hover {
             let pos = latest_pos.unwrap();
 
             let NearestCorner {
                 distance, corner, ..
             } = hover_hex.nearest_corner(pos);
             if distance < 0.4 {
-                hover_corner = Some(HexCornerPos::from((hover_hex, corner)));
+                *hover_corner = Some(corner);
             }
 
             let NearestEdge { distance, edge } = hover_hex.nearest_edge(pos);
             if distance < 0.4 {
-                hover_edge = Some(HexEdgePos::from((hover_hex, edge)));
+                *hover_edge = Some(edge);
             }
         }
 
-        if let Some(hover_edge) = hover_edge {
-            paint_edge_line(
-                hover_edge.pos(),
-                hover_edge.edge(),
-                3.0,
-                egui::Color32::GREEN,
-            );
+        if let Some((hover_hex, Some(hover_edge), _)) = *self.hover {
+            paint_edge_line(hover_hex, hover_edge, 3.0, egui::Color32::GREEN);
         }
-        if let Some(hover_corner) = hover_corner {
-            paint_corner_dot(
-                hover_corner.pos(),
-                hover_corner.corner(),
-                5.0,
-                egui::Color32::GREEN,
-            );
-        }
-
-        if let Some(hover_hex) = hover_hex {
-            if response.clicked() {
-                self.on_click(hover_hex, hover_edge, hover_corner);
-            }
-
-            if response.secondary_clicked() {
-                self.on_secondary_click(hover_hex);
-            }
+        if let Some((hover_hex, _, Some(hover_corner))) = *self.hover {
+            paint_corner_dot(hover_hex, hover_corner, 5.0, egui::Color32::GREEN);
         }
 
         response

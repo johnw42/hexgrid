@@ -119,7 +119,11 @@ impl HexId for HexEdgePos {
     }
 
     fn rotate_around(self, center: HexPos, steps: HexCoord) -> Self {
-        (self.pos.rotate_around(center, steps), self.edge).into()
+        (
+            self.pos.rotate_around(center, steps),
+            self.edge.rotate(steps),
+        )
+            .into()
     }
 
     fn shift(self, delta: HexDelta) -> Self {

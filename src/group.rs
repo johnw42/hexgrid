@@ -3,10 +3,19 @@ use std::collections::HashSet;
 
 /// A collection of hexagons, edges, or corners that can be manipulated as a
 /// group.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HexGroup<H = HexPos>(HashSet<H>)
 where
     H: HexId;
+
+impl<H> Default for HexGroup<H>
+where
+    H: HexId,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl<H> HexGroup<H>
 where
