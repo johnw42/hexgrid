@@ -5,8 +5,9 @@ use crate::{
     corner_pos::HexCornerPos,
     edge::{HexEdge, NormHexEdge},
     edge_pos::HexEdgePos,
-    grid_size::{HexCornerIterator, HexEdgeIterator, HexGridSize},
+    grid_size::HexGridSize,
     pos::HexPos,
+    region::{HexCornerIterator, HexEdgeIterator},
 };
 
 /// A hexagonal grid of hexes, edges, and corners, with associated data for each.
@@ -210,12 +211,12 @@ impl<H, E, C> HexGrid<H, E, C> {
 
     /// Returns an iterator over the positions of all edges in the grid.
     pub fn iter_edges(&self) -> HexEdgeIterator {
-        HexEdgeIterator::new(self.size)
+        self.size.iter_edges()
     }
 
     /// Returns an iterator over the positions of all corners in the grid.
     pub fn iter_corners(&self) -> HexCornerIterator {
-        HexCornerIterator::new(self.size)
+        self.size.iter_corners()
     }
 
     /// Returns a reference to the data associated with the hex at the given

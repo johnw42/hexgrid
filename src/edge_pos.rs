@@ -82,7 +82,7 @@ impl HexEdgePos {
         let (pos, edge) = self.norm().pos_edge();
         [
             (pos, edge.into()).into(),
-            (pos.neighbor(edge), edge.opposite().into()).into(),
+            (pos.neighbor(edge), edge.opposite()).into(),
         ]
     }
 }
@@ -133,7 +133,7 @@ impl HexId for HexEdgePos {
     }
 
     fn edges(&self) -> impl Iterator<Item = HexEdge> + '_ {
-        std::iter::once(self.edge.into())
+        std::iter::once(self.edge)
     }
 
     fn rotate_around(self, center: HexPos, steps: HexCoord) -> Self {

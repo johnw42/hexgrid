@@ -1,6 +1,6 @@
 use crate::{
-    Cartesian, HEX_HEIGHT, HEX_WIDTH, HexCoord, HexCornerPos, HexEdgePos, HexPos, HexPosContainer,
-    NormHexCorner, NormHexEdge,
+    Cartesian, HEX_HEIGHT, HEX_WIDTH, HexCoord, HexCorner, HexCornerPos, HexEdge, HexEdgePos,
+    HexPos, HexPosContainer, NormHexCorner, NormHexEdge,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -31,9 +31,9 @@ impl HexRegion {
         self.max_v - self.min_v + 1
     }
 
-    /// Return true iff the region contains the specified edge
-    /// position.  This is true if the edge is part of a hex in the region, or if
-    /// the edge is on the boundary of the region.
+    /// Return true iff the grid of this size contains the specified edge
+    /// position.  This is true if the edge is part of a hex in the grid, or if
+    /// the edge is on the boundary of the grid.
     pub fn contains_edge(&self, edge_pos: HexEdgePos) -> bool {
         if self.contains_hex(edge_pos.pos()) {
             return true;
@@ -49,15 +49,20 @@ impl HexRegion {
         } = *self;
 
         match edge {
-            NormHexEdge::TopRight => u == min_u - 1 && (min_v - 1..max_v).contains(&v),
-            NormHexEdge::Top => (min_u..=max_u).contains(&u) && (min_v - 1..=min_v).contains(&v),
-            NormHexEdge::TopLeft => u == max_u + 1 && (min_v - 1..max_v).contains(&v),
+            NormHexEdge::TopRight if u == min_u - 1 => (min_v - 1..max_v).contains(&v),
+            NormHexEdge::TopRight if v == min_v - 1 => {
+                u % 2 != 0 && (min_u - 1..max_u).contains(&u)
+            }
+            NormHexEdge::Top if (min_v - 2..min_v).contains(&v) => (min_u..=max_u).contains(&u),
+            NormHexEdge::TopLeft if u == max_u + 1 => (min_v - 1..max_v).contains(&v),
+            NormHexEdge::TopLeft if v == min_v - 1 => u % 2 != 0 && (min_u..=max_u).contains(&u),
+            _ => self.contains_hex(pos),
         }
     }
 
-    /// Return true iff the region contains the specified corner
-    /// position.  This is true if the corner is part of a hex in the region, or if
-    /// the corner is on the boundary of the region.
+    /// Return true iff the grid of this size contains the specified corner
+    /// position.  This is true if the corner is part of a hex in the grid, or if
+    /// the corner is on the boundary of the grid.
     pub fn contains_corner(&self, corner_pos: HexCornerPos) -> bool {
         if self.contains_hex(corner_pos.pos()) {
             return true;
@@ -77,9 +82,16 @@ impl HexRegion {
             NormHexCorner::TopLeft => u == max_u + 1,
         };
         corner_u_matches && (min_v - 1..max_v).contains(&v)
-            || (min_v - 2..=min_v).contains(&v)
-                && (min_u..=max_u).contains(&u)
-                && (max_v - min_v + 1) > 0
+            || (-2..=0).contains(&v) && (min_u..=max_u).contains(&u) && max_v - min_v + 1 > 0
+            || self.contains_hex(pos)
+    }
+
+    pub fn iter_edges(&self) -> HexEdgeIterator {
+        HexEdgeIterator::new(*self)
+    }
+
+    pub fn iter_corners(&self) -> HexCornerIterator {
+        HexCornerIterator::new(*self)
     }
 }
 
@@ -180,5 +192,192 @@ impl Iterator for HexRegionIterator {
         }
 
         result
+    }
+}
+
+pub struct HexEdgeIterator {
+    min_u: HexCoord,
+    min_v: HexCoord,
+    max_u: HexCoord,
+    edge: HexEdge,
+    pos: Option<HexPos>,
+    pos_iter: HexRegionIterator,
+}
+
+impl HexEdgeIterator {
+    pub fn new(region: HexRegion) -> Self {
+        let mut pos_iter = region.iter_hexes();
+        let pos = pos_iter.next();
+        Self {
+            min_u: region.min_u,
+            min_v: region.min_v,
+            max_u: region.max_u,
+            edge: HexEdge::TopRight,
+            pos,
+            pos_iter,
+        }
+    }
+}
+
+impl Iterator for HexEdgeIterator {
+    type Item = HexEdgePos;
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let pos = self.pos?;
+            let edge = self.edge;
+            self.edge = self.edge.rotate(1);
+            if self.edge == HexEdge::TopRight {
+                self.pos = self.pos_iter.next();
+            }
+            let is_valid_edge = match edge {
+                HexEdge::TopRight | HexEdge::Top | HexEdge::TopLeft => true,
+                HexEdge::BottomLeft => pos.u() == self.min_u || pos.v() == self.min_v,
+                HexEdge::Bottom => pos.v() <= self.min_v + 1,
+                HexEdge::BottomRight => pos.v() == self.min_v || pos.u() == self.max_u,
+            };
+            if is_valid_edge {
+                return Some(HexEdgePos::from((pos, edge)));
+            }
+        }
+    }
+}
+
+pub struct HexCornerIterator {
+    min_u: HexCoord,
+    min_v: HexCoord,
+    max_u: HexCoord,
+    max_v: HexCoord,
+    corner: HexCorner,
+    pos: Option<HexPos>,
+    pos_iter: HexRegionIterator,
+}
+
+impl HexCornerIterator {
+    pub fn new(region: HexRegion) -> Self {
+        let mut pos_iter = region.iter_hexes();
+        let pos = pos_iter.next();
+        Self {
+            min_u: region.min_u,
+            min_v: region.min_v,
+            max_u: region.max_u,
+            max_v: region.max_v,
+            corner: HexCorner::TopRight,
+            pos,
+            pos_iter,
+        }
+    }
+}
+
+impl Iterator for HexCornerIterator {
+    type Item = HexCornerPos;
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let pos = self.pos?;
+            let corner = self.corner;
+            self.corner = self.corner.rotate(1);
+            if self.corner == HexCorner::TopRight {
+                self.pos = self.pos_iter.next();
+            }
+            let Self {
+                min_u,
+                min_v,
+                max_u,
+                max_v,
+                ..
+            } = *self;
+            let is_valid_corner = match corner {
+                HexCorner::TopRight | HexCorner::TopLeft => true,
+                HexCorner::Right => pos.u() == max_u,
+                HexCorner::Left => pos.u() == min_u,
+                HexCorner::BottomLeft if min_v % 2 == 0 => {
+                    pos.v() == min_v && pos.u() % 2 == 0 || pos.v() == min_v + 1 && pos.u() % 2 != 0
+                }
+                HexCorner::BottomLeft => {
+                    pos.v() == min_v + 1 && pos.u() % 2 == 0 || pos.v() == min_v && pos.u() % 2 != 0
+                }
+                HexCorner::BottomRight => {
+                    pos.v() < min_v + 2
+                        || (max_u % 2 != 0 && pos.v() == min_v + 1 && pos.u() == max_u)
+                        || (max_u % 2 == 0 && pos.v() == min_v + 1 && pos.u() == min_u)
+                }
+            };
+            if is_valid_corner || min_v == max_v {
+                return Some(HexCornerPos::from((pos, corner)));
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::Arbitrary;
+    use quickcheck_macros::quickcheck;
+    use std::collections::HashSet;
+
+    impl Arbitrary for HexRegion {
+        fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+            let min_u = HexCoord::arbitrary(g) % 4;
+            let min_v = HexCoord::arbitrary(g) % 4;
+            let max_u = min_u + HexCoord::arbitrary(g).rem_euclid(4);
+            let max_v = min_v + HexCoord::arbitrary(g).rem_euclid(4);
+            Self::new(min_u, min_v, max_u, max_v)
+        }
+
+        fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+            let width = self.width();
+            let height = self.height();
+            let min_u = self.min_u;
+            let min_v = self.min_v;
+            Box::new(
+                (1..=(width + height))
+                    .flat_map(move |shrink_amount| {
+                        if shrink_amount % 2 == 0 {
+                            vec![(width - shrink_amount / 2, height - shrink_amount / 2)]
+                                .into_iter()
+                        } else {
+                            vec![
+                                (width - shrink_amount / 2, height - (shrink_amount + 1) / 2),
+                                (width - (shrink_amount + 1) / 2, height - shrink_amount / 2),
+                            ]
+                            .into_iter()
+                        }
+                    })
+                    .map(move |(w, h)| HexRegion::new(min_u, min_v, min_u + w - 1, min_v + h - 1)),
+            )
+        }
+    }
+
+    #[quickcheck]
+    fn edge_iterator(region: HexRegion) {
+        let mut seen_edges = HashSet::new();
+        for pos in region.iter_hexes() {
+            for edge in HexEdge::ALL {
+                seen_edges.insert(HexEdgePos::from((pos, edge)).norm());
+            }
+        }
+        let iter_edges = region.iter_edges().map(|e| e.norm()).collect::<Vec<_>>();
+        assert_eq!(seen_edges.len(), iter_edges.len());
+        assert_eq!(seen_edges, iter_edges.into_iter().collect::<HashSet<_>>());
+    }
+
+    #[quickcheck]
+    fn corner_iterator(region: HexRegion) {
+        let mut expected_corners = HashSet::new();
+        for pos in region.iter_hexes() {
+            for corner in HexCorner::ALL {
+                expected_corners.insert(HexCornerPos::from((pos, corner)).norm());
+            }
+        }
+        let actual_corners = region.iter_corners().collect::<Vec<_>>();
+        assert_eq!(
+            expected_corners.clone(),
+            actual_corners
+                .clone()
+                .iter()
+                .map(|c| c.norm())
+                .collect::<HashSet<_>>()
+        );
+        assert_eq!(expected_corners.len(), actual_corners.len());
     }
 }
