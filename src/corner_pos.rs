@@ -6,7 +6,8 @@ use crate::{
     pos::HexPos,
 };
 use std::{
-    fmt::Display,
+    fmt::{Debug, Display},
+    hash::Hash,
     ops::{Add, Sub},
 };
 
@@ -17,19 +18,25 @@ use std::{
 /// `norm` method returns a normalized representation of the corner position,
 /// which is unique for each corner.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct HexCornerPos {
+pub struct HexCornerPos<C = HexCorner>
+where
+    C: Into<HexCorner>,
+{
     pub pos: HexPos,
-    pub corner: HexCorner,
+    pub corner: C,
 }
 
-impl HexCornerPos {
+impl<C> HexCornerPos<C>
+where
+    C: Into<HexCorner>,
+{
     /// Returns the u coordinate of the hexagon position.
     pub fn u(self) -> HexCoord {
         self.pos.u()
     }
 
     /// Returns the v coordinate of the hexagon position.
-    pub fn v(self) -> HexCoord {
+    pub fn v(&self) -> HexCoord {
         self.pos.v()
     }
 
@@ -39,24 +46,26 @@ impl HexCornerPos {
     }
 
     /// Returns the `HexCorner` of the corner position.
-    pub fn corner(self) -> HexCorner {
+    pub fn corner(self) -> C {
         self.corner
     }
 
     /// Returns the `HexPos` and `HexCorner` of the corner position as a tuple.
-    pub fn pos_corner(self) -> (HexPos, HexCorner) {
+    pub fn pos_corner(self) -> (HexPos, C) {
         (self.pos, self.corner)
     }
 
     /// Returns the u and v coordinates of the hexagon position and the
     /// `HexCorner` of the corner position as a tuple.
-    pub fn u_v_corner(self) -> (HexCoord, HexCoord, HexCorner) {
+    pub fn u_v_corner(self) -> (HexCoord, HexCoord, C) {
         (self.pos.u(), self.pos.v(), self.corner)
     }
+}
 
+impl HexCornerPos {
     /// Returns a normalized representation of the corner position, which is
     /// unique for each corner.
-    pub fn norm(self) -> (HexPos, NormHexCorner) {
+    pub fn norm(self) -> HexCornerPos<NormHexCorner> {
         let pos = self.pos;
         match self.corner {
             HexCorner::Right => (pos + HexDelta::new(1, -1), NormHexCorner::TopLeft),
@@ -66,12 +75,13 @@ impl HexCornerPos {
             HexCorner::BottomLeft => (pos + HexDelta::new(0, -2), NormHexCorner::TopLeft),
             HexCorner::BottomRight => (pos + HexDelta::new(0, -2), NormHexCorner::TopRight),
         }
+        .into()
     }
 
     /// Returns the three equivalent representations of the corner position, for which
     /// `norm` returns the same value.
     pub fn variants(self) -> [Self; 3] {
-        let (pos, corner) = self.norm();
+        let (pos, corner) = self.norm().pos_corner();
         match corner {
             NormHexCorner::TopRight => [
                 (pos, HexCorner::TopRight).into(),
@@ -87,37 +97,40 @@ impl HexCornerPos {
     }
 }
 
-impl<C> From<(HexCoord, HexCoord, C)> for HexCornerPos
+impl<C> From<(HexCoord, HexCoord, C)> for HexCornerPos<C>
 where
     C: Into<HexCorner>,
 {
     fn from((u, v, corner): (HexCoord, HexCoord, C)) -> Self {
         Self {
             pos: HexPos::new(u, v),
-            corner: corner.into(),
+            corner,
         }
     }
 }
 
-impl<C> From<(HexPos, C)> for HexCornerPos
+impl<C> From<(HexPos, C)> for HexCornerPos<C>
 where
     C: Into<HexCorner>,
 {
     fn from((pos, corner): (HexPos, C)) -> Self {
-        Self {
-            pos,
-            corner: corner.into(),
-        }
+        Self { pos, corner }
     }
 }
 
-impl Display for HexCornerPos {
+impl<C> Display for HexCornerPos<C>
+where
+    C: Into<HexCorner> + Debug,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}, {}, {:?})", self.u(), self.v(), self.corner())
+        write!(f, "({}, {}, {:?})", self.pos.u(), self.pos.v(), self.corner)
     }
 }
 
-impl Add<HexDelta> for HexCornerPos {
+impl<C> Add<HexDelta> for HexCornerPos<C>
+where
+    C: Into<HexCorner>,
+{
     type Output = Self;
 
     fn add(self, delta: HexDelta) -> Self::Output {
@@ -128,7 +141,10 @@ impl Add<HexDelta> for HexCornerPos {
     }
 }
 
-impl Sub<HexDelta> for HexCornerPos {
+impl<C> Sub<HexDelta> for HexCornerPos<C>
+where
+    C: Into<HexCorner>,
+{
     type Output = Self;
 
     fn sub(self, delta: HexDelta) -> Self::Output {

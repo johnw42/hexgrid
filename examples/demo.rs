@@ -151,12 +151,12 @@ impl DemoApp {
                 |edge| GridContent {
                     init_param: edge,
                     is_active: self.init_selection == InitSelection::Owned
-                        && size.contains_hex(edge.norm().0),
+                        && size.contains_hex(edge.norm().pos()),
                 },
                 |corner| GridContent {
                     init_param: corner,
                     is_active: self.init_selection == InitSelection::Owned
-                        && size.contains_hex(corner.norm().0),
+                        && size.contains_hex(corner.norm().pos()),
                 },
             )
         });

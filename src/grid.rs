@@ -296,7 +296,7 @@ impl<H, E, C> HexGrid<H, E, C> {
             edge_pos
         );
 
-        let (pos, edge): (HexPos, NormHexEdge) = edge_pos.norm();
+        let (pos, edge) = edge_pos.norm().pos_edge();
         let (u, v) = pos.u_v();
         let (width, height) = self.size.unpack();
 
@@ -325,7 +325,7 @@ impl<H, E, C> HexGrid<H, E, C> {
             corner_pos
         );
 
-        let (pos, corner) = corner_pos.norm();
+        let (pos, corner) = corner_pos.norm().pos_corner();
         let (u, v) = pos.u_v();
         let width = self.size.width();
         if self.has_hex(pos) {

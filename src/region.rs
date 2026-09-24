@@ -39,7 +39,7 @@ impl HexRegion {
             return true;
         }
 
-        let (pos, edge) = edge_pos.norm();
+        let (pos, edge) = edge_pos.norm().pos_edge();
         let (u, v) = pos.u_v();
         let Self {
             min_u,
@@ -63,7 +63,7 @@ impl HexRegion {
             return true;
         }
 
-        let (pos, corner) = corner_pos.norm();
+        let (pos, corner) = corner_pos.norm().pos_corner();
         let (u, v) = pos.u_v();
         let Self {
             min_u,

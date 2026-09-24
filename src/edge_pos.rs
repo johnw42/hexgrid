@@ -5,7 +5,10 @@ use crate::{
     id::HexId,
     pos::HexPos,
 };
-use std::fmt::Display;
+use std::{
+    fmt::{Debug, Display},
+    hash::Hash,
+};
 
 /// A struct representing a position of an edge of a hexagon in a hexagonal
 /// grid.
@@ -14,12 +17,18 @@ use std::fmt::Display;
 /// `norm` method returns a normalized representation of the edge position,
 /// which is unique for each edge.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct HexEdgePos {
+pub struct HexEdgePos<E = HexEdge>
+where
+    E: Into<HexEdge>,
+{
     pub pos: HexPos,
-    pub edge: HexEdge,
+    pub edge: E,
 }
 
-impl HexEdgePos {
+impl<E> HexEdgePos<E>
+where
+    E: Into<HexEdge>,
+{
     /// Returns the `HexPos` of the hexagon position.
     pub fn pos(self) -> HexPos {
         self.pos
@@ -36,70 +45,79 @@ impl HexEdgePos {
     }
 
     /// Returns the `HexEdge` of the edge position.
-    pub fn edge(self) -> HexEdge {
+    pub fn edge(self) -> E {
         self.edge
     }
 
     /// Returns the `HexPos` and `HexEdge` of the edge position as a tuple.
-    pub fn pos_edge(self) -> (HexPos, HexEdge) {
+    pub fn pos_edge(self) -> (HexPos, E) {
         (self.pos, self.edge)
     }
 
     /// Returns the u and v coordinates of the hexagon position and the
     /// `HexEdge` of the edge position as a tuple.
-    pub fn u_v_edge(self) -> (HexCoord, HexCoord, HexEdge) {
+    pub fn u_v_edge(self) -> (HexCoord, HexCoord, E) {
         (self.pos.u(), self.pos.v(), self.edge)
     }
+}
 
+impl HexEdgePos {
     /// Returns a normalized representation of the edge position, which is
     /// unique for each edge.
-    pub fn norm(self) -> (HexPos, NormHexEdge) {
-        if let Ok(primary_edge) = self.edge.try_into() {
-            (self.pos, primary_edge)
+    pub fn norm(self) -> HexEdgePos<NormHexEdge> {
+        if let Ok(norm_edge) = NormHexEdge::try_from(self.edge) {
+            (self.pos, norm_edge).into()
         } else {
             (
                 self.pos.neighbor(self.edge),
                 self.edge.opposite().try_into().unwrap(),
             )
+                .into()
         }
     }
 
     /// Returns the two equivalent representations of the edge position, for which
     /// `norm` returns the same value.
     pub fn variants(self) -> [Self; 2] {
-        let (pos, edge) = self.norm();
+        let (pos, edge) = self.norm().pos_edge();
         [
-            (pos, edge).into(),
-            (pos.neighbor(edge), edge.opposite()).into(),
+            (pos, edge.into()).into(),
+            (pos.neighbor(edge), edge.opposite().into()).into(),
         ]
     }
 }
 
-impl<E> From<(HexCoord, HexCoord, E)> for HexEdgePos
+impl HexEdgePos<NormHexEdge> {
+    pub fn norm(self) -> HexEdgePos<NormHexEdge> {
+        self
+    }
+}
+
+impl<E> From<(HexCoord, HexCoord, E)> for HexEdgePos<E>
 where
     E: Into<HexEdge>,
 {
     fn from((u, v, edge): (HexCoord, HexCoord, E)) -> Self {
         Self {
             pos: HexPos::new(u, v),
-            edge: edge.into(),
+            edge,
         }
     }
 }
 
-impl<E> From<(HexPos, E)> for HexEdgePos
+impl<E> From<(HexPos, E)> for HexEdgePos<E>
 where
     E: Into<HexEdge>,
 {
     fn from((pos, edge): (HexPos, E)) -> Self {
-        Self {
-            pos,
-            edge: edge.into(),
-        }
+        Self { pos, edge }
     }
 }
 
-impl Display for HexEdgePos {
+impl<E> Display for HexEdgePos<E>
+where
+    E: Into<HexEdge> + Debug,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({}, {}, {:?})", self.pos.u(), self.pos.v(), self.edge)
     }
@@ -115,7 +133,7 @@ impl HexId for HexEdgePos {
     }
 
     fn edges(&self) -> impl Iterator<Item = HexEdge> + '_ {
-        std::iter::once(self.edge)
+        std::iter::once(self.edge.into())
     }
 
     fn rotate_around(self, center: HexPos, steps: HexCoord) -> Self {

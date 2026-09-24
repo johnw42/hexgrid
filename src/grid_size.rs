@@ -108,7 +108,7 @@ impl HexGridSize {
             return true;
         }
 
-        let (pos, edge) = edge_pos.norm();
+        let (pos, edge) = edge_pos.norm().pos_edge();
         let (u, v) = pos.u_v();
         let (width, height) = self.unpack();
 
@@ -130,7 +130,7 @@ impl HexGridSize {
             return true;
         }
 
-        let (pos, corner): (HexPos, NormHexCorner) = corner_pos.norm();
+        let (pos, corner) = corner_pos.norm().pos_corner();
         let (u, v) = pos.u_v();
         let (width, height) = self.unpack();
 
@@ -256,9 +256,12 @@ impl Iterator for HexCornerIterator {
                 self.pos = self.pos_iter.next();
             }
             let is_valid_corner = match corner {
-                HexCorner::Right | HexCorner::TopRight | HexCorner::TopLeft => true,
+                HexCorner::TopRight | HexCorner::TopLeft => true,
+                HexCorner::Right => pos.u() == self.width - 1,
                 HexCorner::Left => pos.u() == 0,
-                HexCorner::BottomLeft => pos.v() == 0 && pos.v() == 0 || pos.v() == 1,
+                HexCorner::BottomLeft => {
+                    pos.v() == 0 && pos.u() % 2 == 0 || pos.v() == 1 && pos.u() % 2 != 0
+                }
                 HexCorner::BottomRight => {
                     pos.v() < 2
                         || (self.width % 2 == 0 && pos.v() == 1 && pos.u() == self.width - 1)
@@ -458,13 +461,19 @@ mod tests {
                 seen_corners.insert(HexCornerPos::from((pos, corner)).norm());
             }
         }
-        let iter_corners = HexCornerIterator::new(size)
-            .map(|c| c.norm())
-            .collect::<Vec<_>>();
-        assert_eq!(seen_corners.len(), iter_corners.len());
+        let iter_corners = HexCornerIterator::new(size).collect::<Vec<_>>();
         assert_eq!(
             seen_corners,
-            iter_corners.into_iter().collect::<HashSet<_>>()
+            iter_corners
+                .iter()
+                .map(|c| c.norm())
+                .collect::<HashSet<_>>()
+        );
+        assert_eq!(
+            seen_corners.len(),
+            iter_corners.len(),
+            "iter_corners: {:?}",
+            iter_corners
         );
     }
 }
