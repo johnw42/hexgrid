@@ -114,10 +114,10 @@ impl HexGridSize {
 
         match edge {
             NormHexEdge::TopRight if u == -1 => (-1..height - 1).contains(&v),
-            NormHexEdge::TopRight if v == -1 => u % 2 != 0 && (-1..width).contains(&u),
+            NormHexEdge::TopRight if v == -1 => u % 2 != 0 && (-1..width - 1).contains(&u),
             NormHexEdge::Top if (-2..0).contains(&v) => (0..width).contains(&u),
-            NormHexEdge::TopLeft if u == width => (-1..=height - 1).contains(&v),
-            NormHexEdge::TopLeft if v == -1 => u % 2 == 0 && (0..width).contains(&u),
+            NormHexEdge::TopLeft if u == width => (-1..height - 1).contains(&v),
+            NormHexEdge::TopLeft if v == -1 => u % 2 != 0 && (0..width).contains(&u),
             _ => self.contains_hex(pos),
         }
     }
@@ -140,6 +140,7 @@ impl HexGridSize {
         };
         corner_u_matches && (-1..height - 1).contains(&v)
             || (-2..=0).contains(&v) && (0..width).contains(&u) && height > 0
+            || self.contains_hex(pos)
     }
 
     #[cfg(test)]
@@ -344,14 +345,6 @@ mod tests {
         assert_eq!(size.len(), size.iter_hexes().count());
     }
 
-    fn perimeter_hexes(size: HexGridSize) -> HashSet<HexPos> {
-        let mut result = HashSet::new();
-        for edge_pos in HexPerimeterIterator::new(&size) {
-            result.insert(edge_pos.pos().neighbor(edge_pos.edge()));
-        }
-        result
-    }
-
     #[test]
     fn contains_edge1() {
         let size = HexGridSize::new(1, 1).unwrap();
@@ -388,22 +381,56 @@ mod tests {
             ));
             assert!(
                 size.contains_edge(neighbor_edge),
-                "size: {}, edge_pos: {:?}, neighbor_edge: {:?}",
+                "size: {}, edge_pos: {:?}, neighbor_edge: {:?}, norm: {:?}",
                 size,
                 edge_pos,
-                neighbor_edge
+                neighbor_edge,
+                neighbor_edge.norm()
             );
         }
     }
 
     #[test]
-    fn contains_corner() {
+    fn contains_corner1() {
         let size = HexGridSize::new(1, 1).unwrap();
         for corner in HexCorner::ALL {
             let pos = HexPos::new(0, 0);
             assert!(size.contains_corner(HexCornerPos::from((pos, corner))));
             for (neighbor_pos, neighbor_corner) in pos.neighbors_at_corner(corner) {
                 assert!(size.contains_corner(HexCornerPos::from((neighbor_pos, neighbor_corner))));
+            }
+        }
+    }
+
+    #[quickcheck]
+    fn contains_corner(size: HexGridSize) {
+        for edge_pos in HexPerimeterIterator::new(&size) {
+            let neighbor_edge = HexEdgePos::from((
+                edge_pos.pos().neighbor(edge_pos.edge()),
+                edge_pos.edge().opposite(),
+            ));
+            for corner in edge_pos.edge().ends().into_iter().flat_map(|c| {
+                edge_pos
+                    .pos()
+                    .neighbors_at_corner(c)
+                    .into_iter()
+                    .find_map(|(p, c)| {
+                        if p == neighbor_edge.pos() {
+                            Some(c)
+                        } else {
+                            None
+                        }
+                    })
+            }) {
+                let corner_pos = HexCornerPos::from((neighbor_edge.pos(), corner));
+                assert!(
+                    size.contains_corner(corner_pos),
+                    "size: {}, edge_pos: {:?}, corner_pos: {:?}, norm: {:?}",
+                    size,
+                    edge_pos,
+                    corner_pos,
+                    corner_pos.norm()
+                );
             }
         }
     }

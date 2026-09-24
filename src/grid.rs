@@ -499,18 +499,19 @@ mod tests {
                 if let Ok(size) = HexGridSize::new(width, height) {
                     let grid = HexGrid::<()>::new_with_defaults(size);
                     for pos in HexRegion::new(-3, -3, width + 2, height + 2).iter_hexes() {
-                        eprintln!("size: {}, pos: {}", size, pos);
                         if grid.has_hex(pos) {
+                            eprintln!("size: {}, pos: {}", size, pos);
                             grid.hex(pos);
                         }
                         for edge in HexEdge::ALL {
+                            eprintln!("size: {}, pos: {}, edge: {:?}", size, pos, edge);
                             let edge_pos = HexEdgePos::from((pos, edge));
                             if grid.has_edge(edge_pos) {
                                 grid.edge(edge_pos);
                             }
                         }
                         for corner in HexCorner::ALL {
-                            dbg!(corner);
+                            eprintln!("size: {}, pos: {}, corner: {:?}", size, pos, corner);
                             let corner_pos = HexCornerPos::from((pos, corner));
                             if grid.has_corner(corner_pos) {
                                 grid.corner(corner_pos);
