@@ -8,7 +8,7 @@ pub use crate::{
     grid_size::{HexGridSize, HexGridSizeError},
     group::HexGroup,
     perimeter::HexPerimeterIterator,
-    pos::{HexPos, NearestCorner, NearestEdge},
+    pos::{HexPos, HexPosIterator, NearestCorner, NearestEdge},
 };
 
 mod container;

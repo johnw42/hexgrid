@@ -273,7 +273,7 @@ impl HexPosIterator {
     /// positions in the rectangular area defined by the given minimum and
     /// maximum u and v coordinates, inclusive.  The iterator will only return
     /// positions where u + v is even, as required by the hexagonal grid
-    /// coordinate system.  If `u_min` > `u_max` or `v_min` > `v_max`, the
+    /// coordinate system.  If `min_u` > `max_u` or `min_v` > `max_v`, the
     /// iterator will be empty.
     pub fn new(min_u: HexCoord, min_v: HexCoord, max_u: HexCoord, max_v: HexCoord) -> Self {
         Self {
@@ -290,12 +290,9 @@ impl HexPosIterator {
     /// maximum Cartesian coordinates, inclusive.  The iterator will include all
     /// hexagonal grid positions that intersect the rectangle defined by the
     /// given Cartesian coordinates.
-    pub fn new_cartesian(
-        min_x: Distance,
-        min_y: Distance,
-        max_x: Distance,
-        max_y: Distance,
-    ) -> Self {
+    pub fn new_cartesian(min: Cartesian, max: Cartesian) -> Self {
+        let (min_x, min_y) = min;
+        let (max_x, max_y) = max;
         let (min_u, min_v) =
             HexPos::from_center((min_x - HEX_WIDTH / 2.0, min_y - HEX_WIDTH / 2.0)).u_v();
         let (max_u, max_v) =
