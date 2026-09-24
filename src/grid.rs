@@ -1,12 +1,12 @@
 use crate::{
-    HexCoord,
+    HexCoord, HexRegionIterator,
     container::HexPosContainer,
     corner::{HexCorner, NormHexCorner},
     corner_pos::HexCornerPos,
     edge::{HexEdge, NormHexEdge},
     edge_pos::HexEdgePos,
     grid_size::{HexCornerIterator, HexEdgeIterator, HexGridSize},
-    pos::{HexPos, HexPosIterator},
+    pos::HexPos,
 };
 
 /// A hexagonal grid of hexes, edges, and corners, with associated data for each.
@@ -363,7 +363,7 @@ impl<H, E, C> Default for HexGrid<H, E, C> {
 
 impl<H, E, C> HexPosContainer for HexGrid<H, E, C> {
     type Iterator<'c>
-        = HexPosIterator
+        = HexRegionIterator
     where
         Self: 'c;
 
@@ -383,6 +383,7 @@ impl<H, E, C> HexPosContainer for HexGrid<H, E, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::HexRegion;
     use quickcheck_macros::quickcheck;
 
     #[quickcheck]
@@ -497,13 +498,12 @@ mod tests {
             for height in 0..=3 {
                 if let Ok(size) = HexGridSize::new(width, height) {
                     let grid = HexGrid::<()>::new_with_defaults(size);
-                    for pos in HexPosIterator::new(-3, -3, width + 2, height + 2) {
+                    for pos in HexRegion::new(-3, -3, width + 2, height + 2).iter_hexes() {
                         eprintln!("size: {}, pos: {}", size, pos);
                         if grid.has_hex(pos) {
                             grid.hex(pos);
                         }
                         for edge in HexEdge::ALL {
-                            //dbg!(edge);
                             let edge_pos = HexEdgePos::from((pos, edge));
                             if grid.has_edge(edge_pos) {
                                 grid.edge(edge_pos);

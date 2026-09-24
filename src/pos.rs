@@ -1,7 +1,6 @@
 use crate::delta::HexDelta;
 use crate::id::HexId;
 use crate::{Cartesian, Distance, HexCoord, corner::HexCorner, edge::HexEdge};
-use crate::{HEX_HEIGHT, HEX_WIDTH};
 use std::f32::consts::{FRAC_PI_3, FRAC_PI_6};
 use std::fmt::Display;
 use std::ops::{Add, Sub};
@@ -144,6 +143,7 @@ impl HexPos {
     /// Gets the edge of this position that is shared by a neighboring position,
     /// if any.  Returns None if the other position is not a neighbor.
     pub fn neighbor_edge(self, other: Self) -> Option<HexEdge> {
+        // TODO: Rewrite using HexDelta.
         let HexPos(u1, v1) = self;
         let HexPos(u2, v2) = other;
         let du = u2 - u1;
@@ -159,21 +159,36 @@ impl HexPos {
         }
     }
 
-    /// Gets the two neighboring hex positions that share the given corner of this position.
+    /// Gets the two neighboring hex positions that share the given corner of
+    /// this position, paired with the corner relative to that neighbor.
     pub fn neighbors_at_corner(self, corner: HexCorner) -> [(Self, HexCorner); 2] {
-        // TODO: Do this without iterating over all edges.
-        let mut result = [(self, corner); 2];
-        let mut num_found = 0;
-        for edge in HexEdge::ALL {
-            if edge.ends()[0] == corner {
-                let neighbor = self.neighbor(edge);
-                let neighbor_corner = edge.opposite().ends()[0];
-                result[num_found] = (neighbor, neighbor_corner);
-                num_found += 1;
-            }
+        let HexPos(u, v) = self;
+        match corner {
+            HexCorner::Right => [
+                (HexPos(u + 1, v - 1), HexCorner::TopLeft),
+                (HexPos(u + 1, v + 1), HexCorner::BottomLeft),
+            ],
+            HexCorner::TopRight => [
+                (HexPos(u + 1, v + 1), HexCorner::Left),
+                (HexPos(u, v + 2), HexCorner::BottomRight),
+            ],
+            HexCorner::TopLeft => [
+                (HexPos(u, v + 2), HexCorner::BottomLeft),
+                (HexPos(u - 1, v + 1), HexCorner::Right),
+            ],
+            HexCorner::Left => [
+                (HexPos(u - 1, v + 1), HexCorner::BottomRight),
+                (HexPos(u - 1, v - 1), HexCorner::Right),
+            ],
+            HexCorner::BottomLeft => [
+                (HexPos(u - 1, v - 1), HexCorner::Right),
+                (HexPos(u, v - 2), HexCorner::TopLeft),
+            ],
+            HexCorner::BottomRight => [
+                (HexPos(u, v - 2), HexCorner::TopRight),
+                (HexPos(u + 1, v - 1), HexCorner::Left),
+            ],
         }
-        debug_assert_eq!(num_found, 2, "Corner {:?} should have 2 neighbors", corner);
-        result
     }
 
     /// Give a point in Cartesian coordinates, returns the nearest corner of
@@ -217,6 +232,12 @@ impl HexPos {
     }
 }
 
+impl From<(HexCoord, HexCoord)> for HexPos {
+    fn from((u, v): (HexCoord, HexCoord)) -> Self {
+        Self::new(u, v)
+    }
+}
+
 impl Add<HexDelta> for HexPos {
     type Output = Self;
 
@@ -255,71 +276,51 @@ impl HexId for HexPos {
     }
 }
 
-/// An iterator over all hexagonal grid positions in a rectangular area, in
-/// row-major order, starting with the bottom-left corner.  The area is defined
-/// by the minimum and maximum u and v coordinates, inclusive.  The iterator
-/// will only return positions where u + v is even, as required by the hexagonal
-/// grid coordinate system.
-pub struct HexPosIterator {
-    u: HexCoord,
-    v: HexCoord,
-    min_u: HexCoord,
-    max_u: HexCoord,
-    max_v: HexCoord,
+#[derive(Debug, Clone)]
+pub struct HexRingIterator {
+    pos: HexPos,
+    start: HexPos,
+    direction: HexEdge,
+    steps_remaining: HexCoord,
+    done: bool,
+    radius: HexCoord,
 }
 
-impl HexPosIterator {
-    /// Creates a new `HexPosIterator` that will iterate over all hexagonal grid
-    /// positions in the rectangular area defined by the given minimum and
-    /// maximum u and v coordinates, inclusive.  The iterator will only return
-    /// positions where u + v is even, as required by the hexagonal grid
-    /// coordinate system.  If `min_u` > `max_u` or `min_v` > `max_v`, the
-    /// iterator will be empty.
-    pub fn new(min_u: HexCoord, min_v: HexCoord, max_u: HexCoord, max_v: HexCoord) -> Self {
+impl HexRingIterator {
+    pub fn new(center: HexPos, radius: HexCoord) -> Self {
+        let mut pos = center;
+        for _ in 0..radius {
+            pos = pos.neighbor(HexEdge::TopRight);
+        }
         Self {
-            u: min_u,
-            v: min_v,
-            min_u,
-            max_u,
-            max_v,
+            pos,
+            start: pos,
+            direction: HexEdge::TopLeft,
+            steps_remaining: radius,
+            done: false,
+            radius,
         }
     }
-
-    /// Creates a new `HexPosIterator` that will iterate over all hexagonal grid
-    /// positions in the rectangular area defined by the given minimum and
-    /// maximum Cartesian coordinates, inclusive.  The iterator will include all
-    /// hexagonal grid positions that intersect the rectangle defined by the
-    /// given Cartesian coordinates.
-    pub fn new_cartesian(min: Cartesian, max: Cartesian) -> Self {
-        let (min_x, min_y) = min;
-        let (max_x, max_y) = max;
-        let (min_u, min_v) =
-            HexPos::from_center((min_x - HEX_WIDTH / 2.0, min_y - HEX_WIDTH / 2.0)).u_v();
-        let (max_u, max_v) =
-            HexPos::from_center((max_x + HEX_HEIGHT / 2.0, max_y + HEX_HEIGHT / 2.0)).u_v();
-        Self::new(min_u, min_v, max_u, max_v)
-    }
 }
 
-impl Iterator for HexPosIterator {
+impl Iterator for HexRingIterator {
     type Item = HexPos;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut result = None;
-        while result.is_none() && self.v <= self.max_v && self.u <= self.max_u {
-            if (self.u + self.v) % 2 != 0 {
-                self.u += 1;
-            }
-            if self.u <= self.max_u {
-                result = Some(HexPos::new(self.u, self.v));
-            }
-            self.u += 1;
-            if self.u > self.max_u {
-                self.u = self.min_u;
-                self.v += 1;
-            }
+        dbg!(&self);
+        if self.done {
+            return None;
         }
-
+        let result = Some(self.pos);
+        if self.steps_remaining == 0 {
+            self.direction = self.direction.rotate(1);
+            self.steps_remaining = self.radius;
+        }
+        self.steps_remaining -= 1;
+        self.pos = self.pos.neighbor(self.direction);
+        if self.pos == self.start {
+            self.done = true;
+        }
         result
     }
 }
@@ -328,8 +329,18 @@ impl Iterator for HexPosIterator {
 mod tests {
     use super::*;
     use crate::{container::HexPosContainer, grid_size::HexGridSize};
+    use quickcheck::Arbitrary;
     use quickcheck_macros::quickcheck;
     use std::collections::HashSet;
+
+    impl Arbitrary for HexPos {
+        fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+            let u = HexCoord::arbitrary(g) % 64;
+            let v = HexCoord::arbitrary(g) % 64;
+            let u = if (u + v) % 2 == 0 { u } else { u + 1 };
+            HexPos::new(u, v)
+        }
+    }
 
     #[quickcheck]
     fn hex_pos_iterator(size: HexGridSize) {
@@ -342,5 +353,39 @@ mod tests {
             .collect::<HashSet<_>>();
         let actual = size.iter_hexes().collect::<HashSet<_>>();
         assert_eq!(expected, actual);
+    }
+
+    #[quickcheck]
+    fn ring_iterator1(center: HexPos) {
+        let ring_positions = HexRingIterator::new(center, 1).take(7).collect::<Vec<_>>();
+        let expected_positions = HexEdge::ALL
+            .into_iter()
+            .map(|edge| center.neighbor(edge))
+            .collect::<Vec<_>>();
+        assert_eq!(ring_positions, expected_positions);
+    }
+
+    #[quickcheck]
+    fn ring_iterator2(center: HexPos) {
+        let (u, v) = (center.0, center.1);
+        let radius = 2;
+        let ring_positions = HexRingIterator::new(center, radius)
+            .take((6 * radius + 1) as usize)
+            .collect::<Vec<_>>();
+        let expected_positions = vec![
+            HexPos::new(u + 2, v + 2),
+            HexPos::new(u + 1, v + 3),
+            HexPos::new(u, v + 4),
+            HexPos::new(u - 1, v + 3),
+            HexPos::new(u - 2, v + 2),
+            HexPos::new(u - 2, v),
+            HexPos::new(u - 2, v - 2),
+            HexPos::new(u - 1, v - 3),
+            HexPos::new(u, v - 4),
+            HexPos::new(u + 1, v - 3),
+            HexPos::new(u + 2, v - 2),
+            HexPos::new(u + 2, v),
+        ];
+        assert_eq!(ring_positions, expected_positions);
     }
 }

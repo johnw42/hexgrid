@@ -1,9 +1,8 @@
 use eframe::egui;
-use egui::{Pos2, accesskit::HasPopup::Grid};
 use hexgrid::{
     Cartesian, Distance, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord, HexCorner,
     HexCornerPos, HexEdge, HexEdgePos, HexGrid, HexGridSize, HexGroup, HexPerimeterIterator,
-    HexPos, HexPosContainer as _, HexPosIterator, NearestCorner, NearestEdge,
+    HexPos, HexPosContainer as _, HexRegionIterator, NearestCorner, NearestEdge,
 };
 
 fn main() {
@@ -371,7 +370,7 @@ impl eframe::App for DemoApp {
                     );
                     self.clear_selection();
                     let grid = self.grid.as_mut().unwrap();
-                    for hex in HexPosIterator::new_cartesian(
+                    for hex in HexRegionIterator::new_cartesian(
                         coordinate_translation.gui_to_hex(selected_rect.left_bottom()),
                         coordinate_translation.gui_to_hex(selected_rect.right_top()),
                     ) {
@@ -414,7 +413,7 @@ impl CoordinateTranslation {
         }
     }
 
-    fn gui_to_hex(&self, pos: Pos2) -> Cartesian {
+    fn gui_to_hex(&self, pos: egui::Pos2) -> Cartesian {
         let egui::Pos2 { x, y } = (pos - self.rect_offset) / self.scale;
         Self::reflect_vertical((x, y))
     }

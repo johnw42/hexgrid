@@ -1,11 +1,12 @@
 use crate::{
-    HexCoord,
+    HexCoord, HexRegion,
     container::HexPosContainer,
     corner::{HexCorner, NormHexCorner},
     corner_pos::HexCornerPos,
     edge::{HexEdge, NormHexEdge},
     edge_pos::HexEdgePos,
-    pos::{HexPos, HexPosIterator},
+    pos::HexPos,
+    region::HexRegionIterator,
 };
 use std::fmt::Display;
 
@@ -107,14 +108,17 @@ impl HexGridSize {
             return true;
         }
 
-        let (pos, edge): (HexPos, NormHexEdge) = edge_pos.norm();
+        let (pos, edge) = edge_pos.norm();
         let (u, v) = pos.u_v();
         let (width, height) = self.unpack();
 
         match edge {
-            NormHexEdge::TopRight => u == -1 && (-1..height - 1).contains(&v),
-            NormHexEdge::Top => (0..width).contains(&u) && (-1..=0).contains(&v),
-            NormHexEdge::TopLeft => u == width && (-1..height - 1).contains(&v),
+            NormHexEdge::TopRight if u == -1 => (-1..height - 1).contains(&v),
+            NormHexEdge::TopRight if v == -1 => u % 2 != 0 && (-1..width).contains(&u),
+            NormHexEdge::Top if (-2..0).contains(&v) => (0..width).contains(&u),
+            NormHexEdge::TopLeft if u == width => (-1..=height - 1).contains(&v),
+            NormHexEdge::TopLeft if v == -1 => u % 2 == 0 && (0..width).contains(&u),
+            _ => self.contains_hex(pos),
         }
     }
 
@@ -155,20 +159,25 @@ impl Display for HexGridSize {
     }
 }
 
+impl From<HexGridSize> for HexRegion {
+    fn from(size: HexGridSize) -> Self {
+        Self::new(0, 0, size.width - 1, size.height - 1)
+    }
+}
+
 impl HexPosContainer for HexGridSize {
-    type Iterator<'c> = HexPosIterator;
+    type Iterator<'c> = HexRegionIterator;
 
     fn contains_hex(&self, pos: HexPos) -> bool {
-        pos.u() >= 0 && pos.u() < self.width && pos.v() >= 0 && pos.v() < self.height
+        HexRegion::from(*self).contains_hex(pos)
     }
 
     fn iter_hexes(&self) -> Self::Iterator<'_> {
-        HexPosIterator::new(0, 0, self.width - 1, self.height - 1)
+        HexRegionIterator::new(HexRegion::from(*self))
     }
 
     fn len(&self) -> usize {
-        self.width as usize * self.height as usize / 2
-            + (self.width as usize * self.height as usize % 2)
+        HexRegion::from(*self).len()
     }
 }
 
@@ -176,7 +185,7 @@ pub struct HexEdgeIterator {
     width: HexCoord,
     edge: HexEdge,
     pos: Option<HexPos>,
-    pos_iter: HexPosIterator,
+    pos_iter: HexRegionIterator,
 }
 
 impl HexEdgeIterator {
@@ -219,7 +228,7 @@ pub struct HexCornerIterator {
     width: HexCoord,
     corner: HexCorner,
     pos: Option<HexPos>,
-    pos_iter: HexPosIterator,
+    pos_iter: HexRegionIterator,
 }
 
 impl HexCornerIterator {
@@ -264,6 +273,7 @@ impl Iterator for HexCornerIterator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::HexPerimeterIterator;
     use quickcheck::Arbitrary;
     use quickcheck_macros::quickcheck;
     use std::collections::HashSet;
@@ -334,6 +344,70 @@ mod tests {
         assert_eq!(size.len(), size.iter_hexes().count());
     }
 
+    fn perimeter_hexes(size: HexGridSize) -> HashSet<HexPos> {
+        let mut result = HashSet::new();
+        for edge_pos in HexPerimeterIterator::new(&size) {
+            result.insert(edge_pos.pos().neighbor(edge_pos.edge()));
+        }
+        result
+    }
+
+    #[test]
+    fn contains_edge1() {
+        let size = HexGridSize::new(1, 1).unwrap();
+        for edge in HexEdge::ALL {
+            let pos = HexPos::new(0, 0);
+            let edge_pos = HexEdgePos::from((pos, edge));
+            assert!(
+                size.contains_edge(edge_pos),
+                "size: {}, edge_pos: {:?}, norm: {:?}",
+                size,
+                edge_pos,
+                edge_pos.norm(),
+            );
+            let neighbor = pos.neighbor(edge);
+            let neighbor_edge = edge.opposite();
+            let edge_pos = HexEdgePos::from((neighbor, neighbor_edge));
+            assert!(
+                size.contains_edge(edge_pos),
+                "size: {}, edge_pos: {:?}, norm: {:?}",
+                size,
+                edge_pos,
+                edge_pos.norm()
+            );
+        }
+    }
+
+    #[quickcheck]
+    fn contains_edge(size: HexGridSize) {
+        for edge_pos in HexPerimeterIterator::new(&size) {
+            assert!(size.contains_edge(edge_pos));
+            let neighbor_edge = HexEdgePos::from((
+                edge_pos.pos().neighbor(edge_pos.edge()),
+                edge_pos.edge().opposite(),
+            ));
+            assert!(
+                size.contains_edge(neighbor_edge),
+                "size: {}, edge_pos: {:?}, neighbor_edge: {:?}",
+                size,
+                edge_pos,
+                neighbor_edge
+            );
+        }
+    }
+
+    #[test]
+    fn contains_corner() {
+        let size = HexGridSize::new(1, 1).unwrap();
+        for corner in HexCorner::ALL {
+            let pos = HexPos::new(0, 0);
+            assert!(size.contains_corner(HexCornerPos::from((pos, corner))));
+            for (neighbor_pos, neighbor_corner) in pos.neighbors_at_corner(corner) {
+                assert!(size.contains_corner(HexCornerPos::from((neighbor_pos, neighbor_corner))));
+            }
+        }
+    }
+
     #[quickcheck]
     fn edge_iterator(size: HexGridSize) {
         let mut seen_edges = HashSet::new();
@@ -344,8 +418,9 @@ mod tests {
         }
         let iter_edges = HexEdgeIterator::new(size)
             .map(|e| e.norm())
-            .collect::<HashSet<_>>();
-        assert_eq!(seen_edges, iter_edges);
+            .collect::<Vec<_>>();
+        assert_eq!(seen_edges.len(), iter_edges.len());
+        assert_eq!(seen_edges, iter_edges.into_iter().collect::<HashSet<_>>());
     }
 
     #[quickcheck]
@@ -358,7 +433,11 @@ mod tests {
         }
         let iter_corners = HexCornerIterator::new(size)
             .map(|c| c.norm())
-            .collect::<HashSet<_>>();
-        assert_eq!(seen_corners, iter_corners);
+            .collect::<Vec<_>>();
+        assert_eq!(seen_corners.len(), iter_corners.len());
+        assert_eq!(
+            seen_corners,
+            iter_corners.into_iter().collect::<HashSet<_>>()
+        );
     }
 }

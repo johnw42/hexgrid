@@ -8,7 +8,8 @@ pub use crate::{
     grid_size::{HexGridSize, HexGridSizeError},
     group::HexGroup,
     perimeter::HexPerimeterIterator,
-    pos::{HexPos, HexPosIterator, NearestCorner, NearestEdge},
+    pos::{HexPos, NearestCorner, NearestEdge},
+    region::{HexRegion, HexRegionIterator},
 };
 
 mod container;
@@ -23,6 +24,7 @@ mod group;
 mod id;
 mod perimeter;
 mod pos;
+mod region;
 
 /// Integer type used for hex grid coordinates, and other related purposes.
 pub type HexCoord = i32;
