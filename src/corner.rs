@@ -18,7 +18,7 @@ impl HexCorner {
     /// All corners in counter-clockwise order.
     ///
     /// ```
-    /// use hexgrid::HexCorner;
+    /// use hexgridrect::HexCorner;
     ///
     /// for corner in HexCorner::ALL {
     ///     assert_eq!(corner, HexCorner::ALL[corner as usize]);
@@ -55,7 +55,7 @@ impl HexCorner {
     /// need to rotate this corner to get to the other corner.
     ///
     /// ```
-    /// use hexgrid::HexCorner;
+    /// use hexgridrect::HexCorner;
     ///
     /// for corner in HexCorner::ALL {
     ///     for other in HexCorner::ALL {
@@ -94,7 +94,7 @@ impl HexCorner {
     /// nearest corresponding corner of a hexagon.
     ///
     /// ```
-    /// use hexgrid::{Radians, HexCorner};
+    /// use hexgridrect::{Radians, HexCorner};
     /// use std::f32::consts::PI;
     ///
     /// let epsilon: Radians = 0.01;
@@ -135,7 +135,7 @@ impl NormHexCorner {
     /// All normalized corners in counter-clockwise order.
     ///
     /// ```
-    /// use hexgrid::NormHexCorner;
+    /// use hexgridrect::NormHexCorner;
     ///
     /// for corner in NormHexCorner::ALL {
     ///     assert_eq!(corner, NormHexCorner::ALL[corner as usize]);

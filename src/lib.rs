@@ -1,6 +1,6 @@
-//! A library for working with hexagonal grids, such as might commonly
-//! be used to represent the map in a strategy game like Civilization or
-//! Settlers of Catan.
+//! A crate for working with rectangular grids tiled with hexagons, such as
+//! might commonly be used to represent the map in a strategy game like
+//! Civilization or Settlers of Catan.
 //!
 //! The core type of this trait is [`HexGrid`], which represents a rectangular
 //! grid of hexagons along with their edges and corners.
@@ -19,8 +19,8 @@
 //! corner or edge in the hexagonal grid.
 //!
 //! An arbitrary group of [`HexPos`] values can be represented as a
-//! [`HexGroup`], allowing groups of positions to be translated and rotated as
-//! a unit.
+//! [`HexGroup`], allowing groups of positions to be translated and rotated as a
+//! unit.
 //!
 //! Some special iterators are provided for particular traversals of the
 //! hexagonal grid:
@@ -39,8 +39,8 @@
 //!
 //! * [`HexPos::from_center`], for finding the hexagonal grid position of a
 //!   hexagon given its Cartesian center coordinates.
-//! * [`HexPos::corner_pos`], for finding the Cartesian coordinates of a
-//!   the corners of a hexagon.
+//! * [`HexPos::corner_pos`], for finding the Cartesian coordinates of a the
+//!   corners of a hexagon.
 //! * [`HexRegionIterator::cartesian`], for iterating over all hexagonal grid
 //!   positions that intersect a rectangular region defined by minimum and
 //!   maximum Cartesian coordinates.

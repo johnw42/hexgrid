@@ -1,5 +1,5 @@
 use eframe::egui;
-use hexgrid::{
+use hexgridrect::{
     Cartesian, Distance, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord, HexCorner,
     HexCornerPos, HexEdge, HexEdgePos, HexGrid, HexGridSize, HexGroup, HexPerimeterIterator,
     HexPos, HexPosContainer as _, HexRegionIterator, NearestCorner, NearestEdge,
@@ -8,7 +8,7 @@ use hexgrid::{
 fn main() {
     let native_options = eframe::NativeOptions::default();
     let _ = eframe::run_native(
-        "hexgrid demo",
+        "hexgridrect demo",
         native_options,
         Box::new(|cc| Ok(Box::new(DemoApp::new(cc)))),
     );

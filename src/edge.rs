@@ -17,7 +17,7 @@ impl HexEdge {
     /// All edges in counter-clockwise order.
     ///
     /// ```
-    /// use hexgrid::HexEdge;
+    /// use hexgridrect::HexEdge;
     ///
     /// for edge in HexEdge::ALL {
     ///     assert_eq!(edge, HexEdge::ALL[edge as usize]);
@@ -83,7 +83,7 @@ impl NormHexEdge {
     /// All normalized edges in counter-clockwise order.
     ///
     /// ```
-    /// use hexgrid::NormHexEdge;
+    /// use hexgridrect::NormHexEdge;
     ///
     /// for edge in NormHexEdge::ALL {
     ///     assert_eq!(edge, NormHexEdge::ALL[edge as usize]);
