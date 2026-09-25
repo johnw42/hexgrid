@@ -276,55 +276,6 @@ impl HexId for HexPos {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct HexRingIterator {
-    pos: HexPos,
-    start: HexPos,
-    direction: HexEdge,
-    steps_remaining: HexCoord,
-    done: bool,
-    radius: HexCoord,
-}
-
-impl HexRingIterator {
-    pub fn new(center: HexPos, radius: HexCoord) -> Self {
-        let mut pos = center;
-        for _ in 0..radius {
-            pos = pos.neighbor(HexEdge::TopRight);
-        }
-        Self {
-            pos,
-            start: pos,
-            direction: HexEdge::TopLeft,
-            steps_remaining: radius,
-            done: false,
-            radius,
-        }
-    }
-}
-
-impl Iterator for HexRingIterator {
-    type Item = HexPos;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        dbg!(&self);
-        if self.done {
-            return None;
-        }
-        let result = Some(self.pos);
-        if self.steps_remaining == 0 {
-            self.direction = self.direction.rotate(1);
-            self.steps_remaining = self.radius;
-        }
-        self.steps_remaining -= 1;
-        self.pos = self.pos.neighbor(self.direction);
-        if self.pos == self.start {
-            self.done = true;
-        }
-        result
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -353,39 +304,5 @@ mod tests {
             .collect::<HashSet<_>>();
         let actual = size.iter_hexes().collect::<HashSet<_>>();
         assert_eq!(expected, actual);
-    }
-
-    #[quickcheck]
-    fn ring_iterator1(center: HexPos) {
-        let ring_positions = HexRingIterator::new(center, 1).take(7).collect::<Vec<_>>();
-        let expected_positions = HexEdge::ALL
-            .into_iter()
-            .map(|edge| center.neighbor(edge))
-            .collect::<Vec<_>>();
-        assert_eq!(ring_positions, expected_positions);
-    }
-
-    #[quickcheck]
-    fn ring_iterator2(center: HexPos) {
-        let (u, v) = (center.0, center.1);
-        let radius = 2;
-        let ring_positions = HexRingIterator::new(center, radius)
-            .take((6 * radius + 1) as usize)
-            .collect::<Vec<_>>();
-        let expected_positions = vec![
-            HexPos::new(u + 2, v + 2),
-            HexPos::new(u + 1, v + 3),
-            HexPos::new(u, v + 4),
-            HexPos::new(u - 1, v + 3),
-            HexPos::new(u - 2, v + 2),
-            HexPos::new(u - 2, v),
-            HexPos::new(u - 2, v - 2),
-            HexPos::new(u - 1, v - 3),
-            HexPos::new(u, v - 4),
-            HexPos::new(u + 1, v - 3),
-            HexPos::new(u + 2, v - 2),
-            HexPos::new(u + 2, v),
-        ];
-        assert_eq!(ring_positions, expected_positions);
     }
 }

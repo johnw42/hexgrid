@@ -10,6 +10,7 @@ pub use crate::{
     perimeter::HexPerimeterIterator,
     pos::{HexPos, NearestCorner, NearestEdge},
     region::{HexRegion, HexRegionIterator},
+    ring::HexRingIterator,
 };
 
 mod container;
@@ -25,6 +26,7 @@ mod id;
 mod perimeter;
 mod pos;
 mod region;
+mod ring;
 
 /// Integer type used for hex grid coordinates, and other related purposes.
 pub type HexCoord = i32;
