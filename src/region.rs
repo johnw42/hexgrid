@@ -1,6 +1,7 @@
 use crate::{
-    Cartesian, HEX_HEIGHT, HEX_WIDTH, HexCoord, HexCorner, HexCornerPos, HexEdge, HexEdgePos,
-    HexPos, HexPosContainer, NormHexCorner, NormHexEdge,
+    Cartesian, HEX_HEIGHT, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HEX_WIDTH, HexCoord,
+    HexCorner, HexCornerPos, HexEdge, HexEdgePos, HexPos, HexPosContainer, NormHexCorner,
+    NormHexEdge,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -156,18 +157,14 @@ impl HexRegionIterator {
     /// maximum Cartesian coordinates, inclusive.  The iterator will include all
     /// hexagonal grid positions that intersect the rectangle defined by the
     /// given Cartesian coordinates.
-    pub fn new_cartesian(min: Cartesian, max: Cartesian) -> Self {
+    pub fn cartesian(min: Cartesian, max: Cartesian) -> Self {
         let (min_x, min_y) = min;
         let (max_x, max_y) = max;
-        let (min_u, min_v) =
-            HexPos::from_center((min_x - HEX_WIDTH / 2.0, min_y - HEX_WIDTH / 2.0)).u_v();
-        let (max_u, max_v) =
-            HexPos::from_center((max_x + HEX_HEIGHT / 2.0, max_y + HEX_HEIGHT / 2.0)).u_v();
         Self::new(HexRegion {
-            min_u,
-            min_v,
-            max_u,
-            max_v,
+            min_u: ((min_x + HEX_WIDTH / 2.0) / HEX_HORIZONTAL_SPACING).floor() as HexCoord,
+            min_v: (min_y / HEX_VERTICAL_SPACING).floor() as HexCoord,
+            max_u: ((max_x - HEX_WIDTH / 2.0) / HEX_HORIZONTAL_SPACING).ceil() as HexCoord,
+            max_v: (max_y / HEX_VERTICAL_SPACING).ceil() as HexCoord,
         })
     }
 }

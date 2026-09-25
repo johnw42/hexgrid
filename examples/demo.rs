@@ -370,7 +370,7 @@ impl eframe::App for DemoApp {
                     );
                     self.clear_selection();
                     let grid = self.grid.as_mut().unwrap();
-                    for hex in HexRegionIterator::new_cartesian(
+                    for hex in HexRegionIterator::cartesian(
                         coordinate_translation.gui_to_hex(selected_rect.left_bottom()),
                         coordinate_translation.gui_to_hex(selected_rect.right_top()),
                     ) {
