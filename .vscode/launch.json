@@ -20,14 +20,6 @@
         "args": ["run", "--example=demo"]
       },
       "args": []
-    },
-    {
-      "name": "Debug unit tests in example 'demo'",
-      "type": "lldb",
-      "request": "launch",
-      "cargo": {
-        "args": ["test", "--example=demo"]
-      }
     }
   ]
 }

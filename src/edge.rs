@@ -3,7 +3,7 @@ use crate::{Sixths, corner::HexCorner};
 /// Identifier for an edge of a hexagon, represented as an enum with six
 /// variants corresponding to the six edges of a hexagon and the integers 0 to
 /// 5, numbered in counter-clockwise order starting from the top-right edge.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum HexEdge {
     TopRight,
     Top,
@@ -72,7 +72,7 @@ impl HexEdge {
 
 /// A set of possible values of `HexEdge` that are used by the `norm` method
 /// to provide a unique representation of an edge position.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum NormHexEdge {
     TopRight,
     Top,

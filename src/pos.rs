@@ -116,9 +116,9 @@ impl HexPos {
 
     /// Returns the Cartesian coordinates of a specific corner of this hexagon,
     /// assuming the width of the hexagon is 1.0 unit.
-    pub fn corner_pos(self, corner: HexCorner) -> Cartesian {
+    pub fn corner_pos(self, corner: impl Into<HexCorner>) -> Cartesian {
         let (cx, cy) = self.center_pos();
-        let angle = corner.to_angle();
+        let angle = corner.into().to_angle();
         (cx + angle.cos(), cy + angle.sin())
     }
 
