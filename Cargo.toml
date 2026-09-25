@@ -1,7 +1,11 @@
 [package]
-name = "hexrect"
+name = "hexgridrect"
 version = "0.1.0"
 edition = "2024"
+readme = "README.md"
+description = "A library for working with hexagonal grids in a rectangular coordinate system."
+license = "MIT"
+repository = "https://github.com/johnw42/hexgrid"
 
 [dev-dependencies]
 eframe = "0.36.2"

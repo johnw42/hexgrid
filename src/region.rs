@@ -1,7 +1,6 @@
 use crate::{
-    Cartesian, HEX_HEIGHT, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HEX_WIDTH, HexCoord,
-    HexCorner, HexCornerPos, HexEdge, HexEdgePos, HexPos, HexPosContainer, NormHexCorner,
-    NormHexEdge,
+    Cartesian, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HEX_WIDTH, HexCoord, HexCorner,
+    HexCornerPos, HexEdge, HexEdgePos, HexPos, HexPosContainer, NormHexCorner, NormHexEdge,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
