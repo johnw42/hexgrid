@@ -1,8 +1,9 @@
 use eframe::egui;
 use hexgridrect::{
     Cartesian, Distance, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord, HexCorner,
-    HexCornerPos, HexEdge, HexEdgePos, HexGrid, HexGridSize, HexGroup, HexPerimeterIterator,
-    HexPos, HexPosContainer as _, HexRegionIterator, NearestCorner, NearestEdge,
+    HexCornerPos, HexEdge, HexEdgePos, HexGrid, HexGridSize, HexGroup, HexLineIterator,
+    HexPerimeterIterator, HexPos, HexPosContainer as _, HexRegionIterator, NearestCorner,
+    NearestEdge,
 };
 
 fn main() {
@@ -20,6 +21,12 @@ enum InitSelection {
     Owned,
     Perimeter,
     PerimeterFromOrigin,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum DragSelection {
+    Rectangle,
+    Line,
 }
 
 #[derive(Debug)]
@@ -111,9 +118,11 @@ struct DemoApp {
     width: HexCoord,
     height: HexCoord,
     init_selection: InitSelection,
+    drag_selection: DragSelection,
     grid: Option<DemoGrid>,
     hover: HoverState,
     grid_selection: GridSelection,
+    translation: CoordinateTranslation,
     perimeter_animation: Vec<HexEdgePos>,
 }
 const INIT_WIDTH: HexCoord = 7;
@@ -132,9 +141,11 @@ impl DemoApp {
             width: INIT_WIDTH,
             height: INIT_HEIGHT,
             init_selection: InitSelection::None,
+            drag_selection: DragSelection::Rectangle,
             grid: None,
             hover: None,
             grid_selection: GridSelection::default(),
+            translation: CoordinateTranslation::new(50.0),
             perimeter_animation: Vec::new(),
         }
     }
@@ -295,6 +306,45 @@ impl DemoApp {
             self.grid_selection.apply_to(self.grid.as_mut().unwrap());
         }
     }
+
+    fn on_dragged(&mut self, ui: &mut egui::Ui, response: &egui::Response) {
+        self.clear_selection();
+        let painter = ui.painter_at(response.rect);
+        let drag_end = response.interact_pointer_pos().unwrap();
+        let drag_start = drag_end - response.total_drag_delta().unwrap();
+        let selected_rect = egui::Rect::from_two_pos(drag_start, drag_end);
+        if let Some(grid) = self.grid.as_mut() {
+            match self.drag_selection {
+                DragSelection::Rectangle => {
+                    painter.rect_stroke(
+                        selected_rect,
+                        2.0,
+                        egui::Stroke::new(2.0, egui::Color32::from_white_alpha(0x80)),
+                        egui::StrokeKind::Middle,
+                    );
+                    for hex in HexRegionIterator::cartesian(
+                        self.translation.gui_to_hex(selected_rect.left_bottom()),
+                        self.translation.gui_to_hex(selected_rect.right_top()),
+                    ) {
+                        if grid.has_hex(hex) {
+                            grid.hex_mut(hex).is_active = true;
+                        }
+                    }
+                }
+                DragSelection::Line => {
+                    for hex in HexLineIterator::new(
+                        HexPos::from_center(self.translation.gui_to_hex(drag_start)),
+                        HexPos::from_center(self.translation.gui_to_hex(drag_end)),
+                    ) {
+                        if self.grid.as_ref().unwrap().has_hex(hex) {
+                            self.grid.as_mut().unwrap().hex_mut(hex).is_active = true;
+                        }
+                    }
+                }
+            }
+            self.update_grid_selection();
+        }
+    }
 }
 
 impl eframe::App for DemoApp {
@@ -326,6 +376,15 @@ impl eframe::App for DemoApp {
                     "Perimeter from Origin",
                 );
             });
+            ui.horizontal(|ui| {
+                ui.label("Drag selection:");
+                ui.radio_value(
+                    &mut self.drag_selection,
+                    DragSelection::Rectangle,
+                    "Rectangle",
+                );
+                ui.radio_value(&mut self.drag_selection, DragSelection::Line, "Line");
+            });
 
             if self
                 .grid
@@ -338,11 +397,10 @@ impl eframe::App for DemoApp {
 
             if self.grid.is_some() {
                 ui.separator();
-                let mut coordinate_translation = CoordinateTranslation::new(50.0);
                 let hex_view = HexView {
                     grid: self.grid.as_ref().unwrap(),
                     hover: &mut self.hover,
-                    coordinate_translation: &mut coordinate_translation,
+                    translation: &mut self.translation,
                 };
                 let response = ui.add(hex_view);
 
@@ -352,33 +410,8 @@ impl eframe::App for DemoApp {
                 if response.secondary_clicked() {
                     self.on_secondary_grid_clicked();
                 }
-                // if response.drag_started_by(egui::PointerButton::Primary) {
-                //     self.drag_start = response.interact_pointer_pos();
-                // }
                 if response.dragged_by(egui::PointerButton::Primary) {
-                    let painter = ui.painter_at(response.rect);
-                    let selected_rect = egui::Rect::from_two_pos(
-                        response.interact_pointer_pos().unwrap()
-                            - response.total_drag_delta().unwrap(),
-                        response.interact_pointer_pos().unwrap(),
-                    );
-                    painter.rect_stroke(
-                        selected_rect,
-                        2.0,
-                        egui::Stroke::new(2.0, egui::Color32::from_white_alpha(0x80)),
-                        egui::StrokeKind::Middle,
-                    );
-                    self.clear_selection();
-                    let grid = self.grid.as_mut().unwrap();
-                    for hex in HexRegionIterator::cartesian(
-                        coordinate_translation.gui_to_hex(selected_rect.left_bottom()),
-                        coordinate_translation.gui_to_hex(selected_rect.right_top()),
-                    ) {
-                        if grid.has_hex(hex) {
-                            grid.hex_mut(hex).is_active = true;
-                        }
-                    }
-                    self.update_grid_selection();
+                    self.on_dragged(ui, &response);
                 }
             } else {
                 ui.label("Invalid grid size");
@@ -430,7 +463,7 @@ impl CoordinateTranslation {
 struct HexView<'a> {
     grid: &'a DemoGrid,
     hover: &'a mut HoverState,
-    coordinate_translation: &'a mut CoordinateTranslation,
+    translation: &'a mut CoordinateTranslation,
 }
 
 impl<'a> HexView<'a> {}
@@ -443,20 +476,20 @@ impl<'g> egui::Widget for HexView<'g> {
 
         let Self {
             grid,
-            coordinate_translation,
+            translation,
             hover,
         } = self;
 
-        coordinate_translation.rect_offset = rect.center().to_vec2()
+        translation.rect_offset = rect.center().to_vec2()
             - egui::vec2(
                 (grid.width() - 1) as Distance * HEX_HORIZONTAL_SPACING,
                 (1 - grid.height()) as Distance * HEX_VERTICAL_SPACING,
-            ) * (coordinate_translation.scale / 2.0);
+            ) * (translation.scale / 2.0);
 
         let latest_pos = ui
             .ctx()
             .input(|input| input.pointer.latest_pos())
-            .map(|pos| coordinate_translation.gui_to_hex(pos));
+            .map(|pos| translation.gui_to_hex(pos));
         *hover = latest_pos
             .map(HexPos::from_center)
             .filter(|&pos| grid.has_hex(pos))
@@ -466,26 +499,22 @@ impl<'g> egui::Widget for HexView<'g> {
             let [corner1, corner2] = edge.ends();
             painter.line_segment(
                 [
-                    coordinate_translation.hex_to_gui(pos.corner_pos(corner1)),
-                    coordinate_translation.hex_to_gui(pos.corner_pos(corner2)),
+                    translation.hex_to_gui(pos.corner_pos(corner1)),
+                    translation.hex_to_gui(pos.corner_pos(corner2)),
                 ],
                 egui::Stroke::new(size, color),
             );
         };
 
         let paint_corner_dot = |pos: HexPos, corner: HexCorner, size: f32, color: egui::Color32| {
-            painter.circle_filled(
-                coordinate_translation.hex_to_gui(pos.corner_pos(corner)),
-                size,
-                color,
-            );
+            painter.circle_filled(translation.hex_to_gui(pos.corner_pos(corner)), size, color);
         };
 
         for (i, pos) in grid.iter_hexes().enumerate() {
             painter.add(egui::Shape::convex_polygon(
                 HexCorner::ALL
                     .into_iter()
-                    .map(|corner| coordinate_translation.hex_to_gui(pos.corner_pos(corner)))
+                    .map(|corner| translation.hex_to_gui(pos.corner_pos(corner)))
                     .collect(),
                 if hover.map(|(hex, _, _)| hex) == Some(pos) {
                     egui::Color32::RED
@@ -497,7 +526,7 @@ impl<'g> egui::Widget for HexView<'g> {
                 egui::Stroke::new(1.0, egui::Color32::WHITE),
             ));
             painter.text(
-                coordinate_translation.hex_to_gui(pos.center_pos()),
+                translation.hex_to_gui(pos.center_pos()),
                 egui::Align2::CENTER_CENTER,
                 format!("{}: {}", i, pos),
                 egui::TextStyle::Body.resolve(ui.style()),

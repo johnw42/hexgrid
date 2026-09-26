@@ -55,6 +55,7 @@ pub use crate::{
     grid::HexGrid,
     grid_size::{HexGridSize, HexGridSizeError},
     group::HexGroup,
+    line::HexLineIterator,
     perimeter::HexPerimeterIterator,
     pos::{HexPos, NearestCorner, NearestEdge},
     region::{HexRegion, HexRegionIterator},
@@ -71,6 +72,7 @@ mod grid;
 mod grid_size;
 mod group;
 mod id;
+mod line;
 mod perimeter;
 mod pos;
 mod region;

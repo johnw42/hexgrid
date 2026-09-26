@@ -1,3 +1,4 @@
+use crate::HexLineIterator;
 use crate::delta::HexDelta;
 use crate::id::HexId;
 use crate::{Cartesian, Distance, HexCoord, corner::HexCorner, edge::HexEdge};
@@ -229,6 +230,56 @@ impl HexPos {
             distance,
             point: (cpx, cpy),
         }
+    }
+
+    /// Gets the approximate direction from this hex position to another hex position, as a
+    /// [`HexEdge`] value.  Panics if the two positions are the same.
+    pub fn direction_to(self, other: Self) -> HexEdge {
+        use std::cmp::Ordering::*;
+        let (du, dv) = (other - self).du_dv();
+        match (du.cmp(&0), dv.cmp(&0)) {
+            (Less, Less) => {
+                if -dv > -3 * du {
+                    HexEdge::Bottom
+                } else {
+                    HexEdge::BottomLeft
+                }
+            }
+            (Less, Equal) => HexEdge::TopLeft,
+            (Less, Greater) => {
+                if dv >= -3 * du {
+                    HexEdge::Top
+                } else {
+                    HexEdge::TopLeft
+                }
+            }
+            (Equal, Less) => HexEdge::Bottom,
+            (Equal, Greater) => HexEdge::Top,
+            (Greater, Less) => {
+                if -dv >= 3 * du {
+                    HexEdge::Bottom
+                } else {
+                    HexEdge::BottomRight
+                }
+            }
+            (Greater, Equal) => HexEdge::BottomRight,
+            (Greater, Greater) => {
+                if dv > 3 * du {
+                    HexEdge::Top
+                } else {
+                    HexEdge::TopRight
+                }
+            }
+            (Equal, Equal) => {
+                panic!("Cannot get direction to the same hex position")
+            }
+        }
+    }
+
+    /// Returns the minimum number of steps required to reach another hex
+    /// position from this hex position.
+    pub fn steps_to(self, other: Self) -> usize {
+        HexLineIterator::new(self, other).count() - 1
     }
 }
 
