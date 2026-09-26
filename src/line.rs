@@ -1,11 +1,18 @@
 use crate::HexPos;
 
+/// An iterator that yields the positions of hexagons along an approximate
+/// straight line between two hexagonal grid positions.
 pub struct HexLineIterator {
     current: HexPos,
     end: HexPos,
     done: bool,
 }
 
+/// Creates a new iterator that will yield the positions of hexagons along an
+/// approximate straight line between the given `start` and `end` hexagonal grid
+/// positions.  The iterator will yield the `start` position first, and the
+/// exact path is not guaranteed, but it will always be
+/// a shortest path between the two positions.
 impl HexLineIterator {
     pub fn new(start: HexPos, end: HexPos) -> Self {
         Self {

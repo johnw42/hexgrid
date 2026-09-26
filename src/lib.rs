@@ -30,6 +30,7 @@
 //! * [`HexRingIterator`] iterates over the positions of hexagons in a ring
 //!   around a given center hexagon, at a given radius.
 //! * [`HexPerimeterIterator`] iterates the boundary of a group of hexagons.
+//! * [`HexLineIterator`] iterates a straight line between two hexagons.
 //!
 //! Various methods are provided for converting between hexagonal grid
 //! coordinates and Cartesian coordinates and angles, following math
