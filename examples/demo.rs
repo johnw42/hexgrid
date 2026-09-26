@@ -2,8 +2,8 @@ use eframe::egui;
 use hexgridrect::{
     Cartesian, Distance, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord, HexCorner,
     HexCornerPos, HexEdge, HexEdgePos, HexGrid, HexGridSize, HexGroup, HexLineIterator,
-    HexPerimeterIterator, HexPos, HexPosContainer as _, HexRegionIterator, NearestCorner,
-    NearestEdge,
+    HexPerimeterIterator, HexPos, HexPosContainer as _, HexRegionIterator, HexRingIterator,
+    NearestCorner, NearestEdge,
 };
 
 fn main() {
@@ -27,6 +27,7 @@ enum InitSelection {
 enum DragSelection {
     Rectangle,
     Line,
+    Ring,
 }
 
 #[derive(Debug)]
@@ -336,8 +337,19 @@ impl DemoApp {
                         HexPos::from_center(self.translation.gui_to_hex(drag_start)),
                         HexPos::from_center(self.translation.gui_to_hex(drag_end)),
                     ) {
-                        if self.grid.as_ref().unwrap().has_hex(hex) {
-                            self.grid.as_mut().unwrap().hex_mut(hex).is_active = true;
+                        if grid.has_hex(hex) {
+                            grid.hex_mut(hex).is_active = true;
+                        }
+                    }
+                }
+                DragSelection::Ring => {
+                    let center = HexPos::from_center(self.translation.gui_to_hex(drag_start));
+                    let radius = center
+                        .steps_to(HexPos::from_center(self.translation.gui_to_hex(drag_end)))
+                        as HexCoord;
+                    for hex in HexRingIterator::new(center, radius) {
+                        if grid.has_hex(hex) {
+                            grid.hex_mut(hex).is_active = true;
                         }
                     }
                 }
@@ -384,6 +396,7 @@ impl eframe::App for DemoApp {
                     "Rectangle",
                 );
                 ui.radio_value(&mut self.drag_selection, DragSelection::Line, "Line");
+                ui.radio_value(&mut self.drag_selection, DragSelection::Ring, "Ring");
             });
 
             if self
