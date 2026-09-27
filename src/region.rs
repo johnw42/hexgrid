@@ -345,6 +345,19 @@ mod tests {
     }
 
     #[quickcheck]
+    fn region_iterator(size: HexRegion) {
+        let expected = (size.min_v..=size.max_v)
+            .flat_map(|v| {
+                (size.min_u..=size.max_u)
+                    .filter(move |&u| (u + v) % 2 == 0)
+                    .map(move |u| HexPos::new(u, v))
+            })
+            .collect::<HashSet<_>>();
+        let actual = size.iter_hexes().collect::<HashSet<_>>();
+        assert_eq!(expected, actual);
+    }
+
+    #[quickcheck]
     fn edge_iterator(region: HexRegion) {
         let mut seen_edges = HashSet::new();
         for pos in region.iter_hexes() {

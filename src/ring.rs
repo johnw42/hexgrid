@@ -118,7 +118,7 @@ mod tests {
         let expected_size = if radius == 0 { 1 } else { 6 * radius };
         assert_eq!(ring_positions.len(), expected_size as usize);
         for pos in ring_positions {
-            assert_eq!(center.steps_to(pos), radius as usize);
+            assert_eq!(center.steps_to(pos), radius);
         }
     }
 }

@@ -3,9 +3,12 @@ use crate::HexPos;
 /// An iterator that yields the positions of hexagons along an approximate
 /// straight line between two hexagonal grid positions.
 pub struct HexLineIterator {
-    current: HexPos,
-    end: HexPos,
-    done: bool,
+    x: f32,
+    y: f32,
+    dx: f32,
+    dy: f32,
+    step: usize,
+    max_step: usize,
 }
 
 /// Creates a new iterator that will yield the positions of hexagons along an
@@ -15,10 +18,18 @@ pub struct HexLineIterator {
 /// a shortest path between the two positions.
 impl HexLineIterator {
     pub fn new(start: HexPos, end: HexPos) -> Self {
+        let (x, y) = start.cartesian_center();
+        let (x_end, y_end) = end.cartesian_center();
+        let steps = start.steps_to(end) as f32;
+        let dx = (x_end - x) / steps;
+        let dy = (y_end - y) / steps;
         Self {
-            current: start,
-            end,
-            done: false,
+            x,
+            y,
+            dx,
+            dy,
+            step: 0,
+            max_step: steps as usize,
         }
     }
 }
@@ -27,17 +38,15 @@ impl Iterator for HexLineIterator {
     type Item = HexPos;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
+        if self.step > self.max_step {
             return None;
         }
 
-        let result = Some(self.current);
+        let result = Some(HexPos::nearest_from_cartesian((self.x, self.y)));
 
-        if self.current == self.end {
-            self.done = true;
-        } else {
-            self.current = self.current.neighbor(self.current.direction_to(self.end));
-        }
+        self.x += self.dx;
+        self.y += self.dy;
+        self.step += 1;
 
         result
     }

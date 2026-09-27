@@ -1,7 +1,7 @@
-use crate::HexLineIterator;
+use crate::CubicPos;
 use crate::delta::HexDelta;
 use crate::id::HexId;
-use crate::{Cartesian, Distance, HexCoord, corner::HexCorner, edge::HexEdge};
+use crate::{Cartesian, HexCoord, Real, corner::HexCorner, edge::HexEdge};
 use std::f32::consts::{FRAC_PI_3, FRAC_PI_6};
 use std::fmt::Display;
 use std::ops::{Add, Sub};
@@ -11,7 +11,7 @@ pub struct NearestCorner {
     /// The nearest corner of the hex to the given point.
     pub corner: HexCorner,
     /// The distance from the given point to the nearest corner of the hex.
-    pub distance: Distance,
+    pub distance: Real,
     /// The Cartesian coordinates of the nearest corner of the hex to the given point.
     pub point: Cartesian,
 }
@@ -21,7 +21,7 @@ pub struct NearestEdge {
     /// The nearest edge of the hex to the given point.
     pub edge: HexEdge,
     /// The distance from the given point to the nearest edge of the hex.
-    pub distance: Distance,
+    pub distance: Real,
 }
 
 /// A position in a hexagonal grid, represented by two rectangular coordinates
@@ -63,7 +63,7 @@ impl HexPos {
     /// Convertes Cartesian coordinates (x, y) to the nearest hexagonal grid
     /// position.  The origin (0, 0) is at the center of the hexagon at (0, 0),
     /// and the width of the hexagon is 1.0 unit.
-    pub fn from_center((x, y): Cartesian) -> Self {
+    pub fn nearest_from_cartesian((x, y): Cartesian) -> Self {
         // Fractional axial coordinates for flat-topped hexes (R = 1.0)
         let frac_q = (2.0 / 3.0) * x;
         let frac_r = (-1.0 / 3.0) * x + (3.0_f32.sqrt() / 3.0) * y;
@@ -83,19 +83,14 @@ impl HexPos {
             q = -r - s;
         } else if r_diff > s_diff {
             r = -q - s;
-        } else {
-            // s = -q - r;
         }
 
-        // Convert to HexPos coordinates
-        let q = q as HexCoord;
-        let r = r as HexCoord;
-        HexPos::new(q, 2 * r + q)
+        CubicPos::from_q_r(q as HexCoord, r as HexCoord).into()
     }
 
     /// Gets the Cartesian coordinates of the center of this hexagon, assuming
     /// the width of the hexagon is 1.0 unit.
-    pub fn center_pos(self) -> Cartesian {
+    pub fn cartesian_center(self) -> Cartesian {
         let HexPos(u, v) = self;
         let y_scale = (3.0_f32).sqrt() / 2.0;
         let x_scale = 1.5;
@@ -105,8 +100,8 @@ impl HexPos {
     /// Returns the Cartesian coordinates of the six corners of this hexagon, in
     /// counter-clockwise order, starting with the right corner.  The width of
     /// the hexagon is assumed to be 1.0 unit.
-    pub fn corners_pos(self) -> [Cartesian; 6] {
-        let (cx, cy) = self.center_pos();
+    pub fn cartesian_corners(self) -> [Cartesian; 6] {
+        let (cx, cy) = self.cartesian_center();
         let mut corners = [(0.0, 0.0); 6];
         for (i, corner) in corners.iter_mut().enumerate() {
             let angle = (i as f32) * std::f32::consts::FRAC_PI_3;
@@ -117,8 +112,8 @@ impl HexPos {
 
     /// Returns the Cartesian coordinates of a specific corner of this hexagon,
     /// assuming the width of the hexagon is 1.0 unit.
-    pub fn corner_pos(self, corner: impl Into<HexCorner>) -> Cartesian {
-        let (cx, cy) = self.center_pos();
+    pub fn cartesian_corner(self, corner: impl Into<HexCorner>) -> Cartesian {
+        let (cx, cy) = self.cartesian_center();
         let angle = corner.into().to_angle();
         (cx + angle.cos(), cy + angle.sin())
     }
@@ -195,7 +190,7 @@ impl HexPos {
     /// Give a point in Cartesian coordinates, returns the nearest corner of
     /// this hexagon to that point, and the distance to that corner.
     pub fn nearest_edge(self, point: Cartesian) -> NearestEdge {
-        let (cx, cy) = self.center_pos();
+        let (cx, cy) = self.cartesian_center();
         let (px, py) = point;
         let dx = point.0 - cx;
         let dy = point.1 - cy;
@@ -203,7 +198,7 @@ impl HexPos {
         let steps = ((angle + FRAC_PI_6) / FRAC_PI_3).round() as i32;
         let edge = HexEdge::TopRight.rotate(steps - 1);
         let corner = edge.ends()[0];
-        let (cpx, cpy) = self.corner_pos(corner);
+        let (cpx, cpy) = self.cartesian_corner(corner);
         let slope = match edge {
             HexEdge::TopRight | HexEdge::BottomLeft => -FRAC_PI_3.tan(),
             HexEdge::Top | HexEdge::Bottom => 0.0,
@@ -216,14 +211,14 @@ impl HexPos {
     /// Gets the nearest corner of this hex to the given point, the distance to
     /// that corner, and the Cartesian coordinates of that corner.
     pub fn nearest_corner(self, point: Cartesian) -> NearestCorner {
-        let (cx, cy) = self.center_pos();
+        let (cx, cy) = self.cartesian_center();
         let (px, py) = point;
         let dx = px - cx;
         let dy = py - cy;
         let angle = dy.atan2(dx);
         let steps = ((angle + FRAC_PI_6 / 2.0) / FRAC_PI_3).round() as i32;
         let corner = HexCorner::Right.rotate(steps);
-        let (cpx, cpy) = self.corner_pos(corner);
+        let (cpx, cpy) = self.cartesian_corner(corner);
         let distance = (cpx - px).hypot(cpy - py);
         NearestCorner {
             corner,
@@ -278,8 +273,11 @@ impl HexPos {
 
     /// Returns the minimum number of steps required to reach another hex
     /// position from this hex position.
-    pub fn steps_to(self, other: Self) -> usize {
-        HexLineIterator::new(self, other).count() - 1
+    pub fn steps_to(self, other: Self) -> HexCoord {
+        let (du, dv) = (other - self).du_dv();
+        let dcol = du.abs();
+        let drow = dv.abs();
+        dcol + 0.max((drow - dcol) / 2)
     }
 }
 
@@ -330,10 +328,8 @@ impl HexId for HexPos {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{container::HexPosContainer, grid_size::HexGridSize};
     use quickcheck::Arbitrary;
     use quickcheck_macros::quickcheck;
-    use std::collections::HashSet;
 
     impl Arbitrary for HexPos {
         fn arbitrary(g: &mut quickcheck::Gen) -> Self {
@@ -345,15 +341,10 @@ mod tests {
     }
 
     #[quickcheck]
-    fn hex_pos_iterator(size: HexGridSize) {
-        let expected = (0..size.height())
-            .flat_map(|v| {
-                (0..size.width())
-                    .filter(move |&u| (u + v) % 2 == 0)
-                    .map(move |u| HexPos::new(u, v))
-            })
-            .collect::<HashSet<_>>();
-        let actual = size.iter_hexes().collect::<HashSet<_>>();
-        assert_eq!(expected, actual);
+    fn steps_to(pos1: HexPos, pos2: HexPos) {
+        assert_eq!(
+            pos1.steps_to(pos2),
+            CubicPos::from(pos2).steps_to(CubicPos::from(pos1))
+        );
     }
 }

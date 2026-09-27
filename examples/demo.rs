@@ -1,9 +1,9 @@
 use eframe::egui;
 use hexgridrect::{
-    Cartesian, Distance, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord, HexCorner,
-    HexCornerPos, HexEdge, HexEdgePos, HexGrid, HexGridSize, HexGroup, HexLineIterator,
-    HexPerimeterIterator, HexPos, HexPosContainer as _, HexRegionIterator, HexRingIterator,
-    NearestCorner, NearestEdge,
+    Cartesian, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord, HexCorner, HexCornerPos,
+    HexEdge, HexEdgePos, HexGrid, HexGridSize, HexGroup, HexLineIterator, HexPerimeterIterator,
+    HexPos, HexPosContainer as _, HexRegionIterator, HexRingIterator, NearestCorner, NearestEdge,
+    Real,
 };
 
 fn main() {
@@ -334,8 +334,8 @@ impl DemoApp {
                 }
                 DragSelection::Line => {
                     for hex in HexLineIterator::new(
-                        HexPos::from_center(self.translation.gui_to_hex(drag_start)),
-                        HexPos::from_center(self.translation.gui_to_hex(drag_end)),
+                        HexPos::nearest_from_cartesian(self.translation.gui_to_hex(drag_start)),
+                        HexPos::nearest_from_cartesian(self.translation.gui_to_hex(drag_end)),
                     ) {
                         if grid.has_hex(hex) {
                             grid.hex_mut(hex).is_active = true;
@@ -343,10 +343,11 @@ impl DemoApp {
                     }
                 }
                 DragSelection::Ring => {
-                    let center = HexPos::from_center(self.translation.gui_to_hex(drag_start));
-                    let radius = center
-                        .steps_to(HexPos::from_center(self.translation.gui_to_hex(drag_end)))
-                        as HexCoord;
+                    let center =
+                        HexPos::nearest_from_cartesian(self.translation.gui_to_hex(drag_start));
+                    let radius = center.steps_to(HexPos::nearest_from_cartesian(
+                        self.translation.gui_to_hex(drag_end),
+                    )) as HexCoord;
                     for hex in HexRingIterator::new(center, radius) {
                         if grid.has_hex(hex) {
                             grid.hex_mut(hex).is_active = true;
@@ -495,8 +496,8 @@ impl<'g> egui::Widget for HexView<'g> {
 
         translation.rect_offset = rect.center().to_vec2()
             - egui::vec2(
-                (grid.width() - 1) as Distance * HEX_HORIZONTAL_SPACING,
-                (1 - grid.height()) as Distance * HEX_VERTICAL_SPACING,
+                (grid.width() - 1) as Real * HEX_HORIZONTAL_SPACING,
+                (1 - grid.height()) as Real * HEX_VERTICAL_SPACING,
             ) * (translation.scale / 2.0);
 
         let latest_pos = ui
@@ -504,7 +505,7 @@ impl<'g> egui::Widget for HexView<'g> {
             .input(|input| input.pointer.latest_pos())
             .map(|pos| translation.gui_to_hex(pos));
         *hover = latest_pos
-            .map(HexPos::from_center)
+            .map(HexPos::nearest_from_cartesian)
             .filter(|&pos| grid.has_hex(pos))
             .map(|hover_hex| (hover_hex, None, None));
 
@@ -512,22 +513,26 @@ impl<'g> egui::Widget for HexView<'g> {
             let [corner1, corner2] = edge.ends();
             painter.line_segment(
                 [
-                    translation.hex_to_gui(pos.corner_pos(corner1)),
-                    translation.hex_to_gui(pos.corner_pos(corner2)),
+                    translation.hex_to_gui(pos.cartesian_corner(corner1)),
+                    translation.hex_to_gui(pos.cartesian_corner(corner2)),
                 ],
                 egui::Stroke::new(size, color),
             );
         };
 
         let paint_corner_dot = |pos: HexPos, corner: HexCorner, size: f32, color: egui::Color32| {
-            painter.circle_filled(translation.hex_to_gui(pos.corner_pos(corner)), size, color);
+            painter.circle_filled(
+                translation.hex_to_gui(pos.cartesian_corner(corner)),
+                size,
+                color,
+            );
         };
 
         for (i, pos) in grid.iter_hexes().enumerate() {
             painter.add(egui::Shape::convex_polygon(
                 HexCorner::ALL
                     .into_iter()
-                    .map(|corner| translation.hex_to_gui(pos.corner_pos(corner)))
+                    .map(|corner| translation.hex_to_gui(pos.cartesian_corner(corner)))
                     .collect(),
                 if hover.map(|(hex, _, _)| hex) == Some(pos) {
                     egui::Color32::RED
@@ -539,7 +544,7 @@ impl<'g> egui::Widget for HexView<'g> {
                 egui::Stroke::new(1.0, egui::Color32::WHITE),
             ));
             painter.text(
-                translation.hex_to_gui(pos.center_pos()),
+                translation.hex_to_gui(pos.cartesian_center()),
                 egui::Align2::CENTER_CENTER,
                 format!("{}: {}", i, pos),
                 egui::TextStyle::Body.resolve(ui.style()),

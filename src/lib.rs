@@ -38,9 +38,9 @@
 //! direction is upward, and angles are measured counter-clockwise from the
 //! positive u/x axis.  The most noteworthy methods are
 //!
-//! * [`HexPos::from_center`], for finding the hexagonal grid position of a
-//!   hexagon given its Cartesian center coordinates.
-//! * [`HexPos::corner_pos`], for finding the Cartesian coordinates of a the
+//! * [`HexPos::nearest_from_cartesian`], for finding the hexagonal grid position of a
+//!   hexagon given its Cartesian coordinates.
+//! * [`HexPos::cartesian_corner`], for finding the Cartesian coordinates of a the
 //!   corners of a hexagon.
 //! * [`HexRegionIterator::cartesian`], for iterating over all hexagonal grid
 //!   positions that intersect a rectangular region defined by minimum and
@@ -50,6 +50,7 @@ pub use crate::{
     container::HexPosContainer,
     corner::{HexCorner, NormHexCorner},
     corner_pos::HexCornerPos,
+    cubic::CubicPos,
     delta::HexDelta,
     edge::{HexEdge, NormHexEdge},
     edge_pos::HexEdgePos,
@@ -66,6 +67,7 @@ pub use crate::{
 mod container;
 mod corner;
 mod corner_pos;
+mod cubic;
 mod delta;
 mod edge;
 mod edge_pos;
@@ -84,31 +86,31 @@ pub type HexCoord = i32;
 
 /// Cartesian distance type used for hex grid calculations and conversions.  Use implies that the
 /// width of a hexagon is 1.0 unit, and the height of a hexagon is sqrt(3)/2 units.
-pub type Distance = f32;
+pub type Real = f32;
 
 /// Type of an angle measured in sixths of a full circle, assuming the positive
 /// direction is counter-clockwise.
 pub type Sixths = i32;
 
 /// A point in Cartesian coordinates, represented as a pair (x, y) of `Distance` values.
-pub type Cartesian = (Distance, Distance);
+pub type Cartesian = (Real, Real);
 
 /// Type of an angle measured in radians, assuming the positive direction is
 /// counter-clockwise from the positive u-axis.
 pub type Radians = f32;
 
 /// The width of a hexagon in Cartesian coordinates, which is 1.0 unit.
-pub const HEX_WIDTH: Distance = 1.0;
+pub const HEX_WIDTH: Real = 1.0;
 
-/// The height of a hexagon in Cartesian coordinates.
-pub const HEX_HEIGHT: Distance = HEX_WIDTH * SQRT_3 / 2.0;
+/// The height of a hexagon in Cartesian coordinates.  Equal to sqrt(3)/2 units.
+pub const HEX_HEIGHT: Real = SQRT_3 / 2.0;
 
 /// The Cartesian distance between the centers of two vertically adjacent hexagons in a hexagonal grid.
-pub const HEX_VERTICAL_SPACING: Distance = HEX_HEIGHT;
+pub const HEX_VERTICAL_SPACING: Real = HEX_HEIGHT;
 
 /// The Cartesian distance between the centers of two horizontally adjacent columns of hexagons in a hexagonal grid.
-pub const HEX_HORIZONTAL_SPACING: Distance = HEX_WIDTH * 1.5;
+pub const HEX_HORIZONTAL_SPACING: Real = HEX_WIDTH * 1.5;
 
-/// The square root of 3, used in hexagonal grid calculations.
+/// The sqrt(3), used in hexagonal grid calculations.  Needed because f32::sqrt is not a const function.
 #[allow(clippy::excessive_precision)]
-const SQRT_3: Distance = 1.7320508075688772;
+const SQRT_3: Real = 1.7320508075688772;
