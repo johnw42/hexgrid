@@ -461,12 +461,12 @@ impl CoordinateTranslation {
     }
 
     fn gui_to_hex(&self, pos: egui::Pos2) -> Cartesian {
-        let egui::Pos2 { x, y } = (pos - self.rect_offset) / self.scale;
+        let (x, y) = from_pos2((pos - self.rect_offset) / self.scale);
         Self::reflect_vertical((x, y))
     }
 
     fn hex_to_gui(&self, (x, y): Cartesian) -> egui::Pos2 {
-        (self.rect_offset + egui::Vec2::from(Self::reflect_vertical((x, y))) * self.scale).to_pos2()
+        (self.rect_offset + to_vec2(Self::reflect_vertical((x, y))) * self.scale).to_pos2()
     }
 
     fn reflect_vertical((x, y): Cartesian) -> Cartesian {
@@ -474,13 +474,19 @@ impl CoordinateTranslation {
     }
 }
 
+fn to_vec2((x, y): Cartesian) -> egui::Vec2 {
+    egui::vec2(x as f32, y as f32)
+}
+
+fn from_pos2(pos: egui::Pos2) -> Cartesian {
+    (pos.x as Real, pos.y as Real)
+}
+
 struct HexView<'a> {
     grid: &'a DemoGrid,
     hover: &'a mut HoverState,
     translation: &'a mut CoordinateTranslation,
 }
-
-impl<'a> HexView<'a> {}
 
 impl<'g> egui::Widget for HexView<'g> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
@@ -495,10 +501,10 @@ impl<'g> egui::Widget for HexView<'g> {
         } = self;
 
         translation.rect_offset = rect.center().to_vec2()
-            - egui::vec2(
+            - to_vec2((
                 (grid.width() - 1) as Real * HEX_HORIZONTAL_SPACING,
                 (1 - grid.height()) as Real * HEX_VERTICAL_SPACING,
-            ) * (translation.scale / 2.0);
+            )) * (translation.scale / 2.0);
 
         let latest_pos = ui
             .ctx()
@@ -528,14 +534,14 @@ impl<'g> egui::Widget for HexView<'g> {
             );
         };
 
-        for (i, pos) in grid.iter_hexes().enumerate() {
+        for pos in grid.iter_hexes() {
             painter.add(egui::Shape::convex_polygon(
                 HexCorner::ALL
                     .into_iter()
                     .map(|corner| translation.hex_to_gui(pos.cartesian_corner(corner)))
                     .collect(),
                 if hover.map(|(hex, _, _)| hex) == Some(pos) {
-                    egui::Color32::RED
+                    egui::Color32::DARK_RED
                 } else if grid.hex(pos).is_active {
                     egui::Color32::BLUE
                 } else {
@@ -543,12 +549,29 @@ impl<'g> egui::Widget for HexView<'g> {
                 },
                 egui::Stroke::new(1.0, egui::Color32::WHITE),
             ));
+            let font_id = egui::TextStyle::Body.resolve(ui.style());
+            let row_height = painter.fonts_mut(|f| f.row_height(&font_id));
+            let center = translation.hex_to_gui(pos.cartesian_center());
             painter.text(
-                translation.hex_to_gui(pos.cartesian_center()),
+                center + egui::vec2(0.0, -row_height),
                 egui::Align2::CENTER_CENTER,
-                format!("{}: {}", i, pos),
-                egui::TextStyle::Body.resolve(ui.style()),
-                egui::Color32::WHITE,
+                format!("{pos}"),
+                font_id.clone(),
+                egui::Color32::LIGHT_BLUE,
+            );
+            painter.text(
+                center,
+                egui::Align2::CENTER_CENTER,
+                format!("{}", pos.to_cubic()),
+                font_id.clone(),
+                egui::Color32::YELLOW,
+            );
+            painter.text(
+                center + egui::vec2(0.0, row_height),
+                egui::Align2::CENTER_CENTER,
+                format!("{}", pos.to_offset()),
+                font_id,
+                egui::Color32::MAGENTA,
             );
         }
         for pos in grid.iter_hexes() {

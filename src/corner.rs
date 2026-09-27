@@ -1,5 +1,5 @@
 use crate::{Cartesian, Radians, Sixths, edge::HexEdge};
-use std::f32::consts::FRAC_PI_3;
+use std::f64::consts::FRAC_PI_3;
 
 /// Identifier for a corner of a hexagon, represented as an enum with six
 /// variants corresponding to the six corners of a hexagon and the integers 0 to
@@ -95,7 +95,7 @@ impl HexCorner {
     ///
     /// ```
     /// use hexgridrect::{Radians, HexCorner};
-    /// use std::f32::consts::PI;
+    /// use std::f64::consts::PI;
     ///
     /// let epsilon: Radians = 0.01;
     /// for tweak in [-PI/6.0 + epsilon, 0.0, PI/6.0 - epsilon] {

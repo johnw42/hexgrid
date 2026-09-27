@@ -3,10 +3,10 @@ use crate::HexPos;
 /// An iterator that yields the positions of hexagons along an approximate
 /// straight line between two hexagonal grid positions.
 pub struct HexLineIterator {
-    x: f32,
-    y: f32,
-    dx: f32,
-    dy: f32,
+    x: f64,
+    y: f64,
+    dx: f64,
+    dy: f64,
     step: usize,
     max_step: usize,
 }
@@ -18,9 +18,11 @@ pub struct HexLineIterator {
 /// a shortest path between the two positions.
 impl HexLineIterator {
     pub fn new(start: HexPos, end: HexPos) -> Self {
+        // Use 64-bit floats to ensure the full range of i32 coordinates can be
+        // represented without loss of precision.
         let (x, y) = start.cartesian_center();
         let (x_end, y_end) = end.cartesian_center();
-        let steps = start.steps_to(end) as f32;
+        let steps = start.steps_to(end) as f64;
         let dx = (x_end - x) / steps;
         let dy = (y_end - y) / steps;
         Self {

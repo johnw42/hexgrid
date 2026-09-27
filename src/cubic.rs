@@ -1,4 +1,4 @@
-use crate::{HexCoord, HexPos};
+use crate::{HexCoord, HexPos, OffsetPos};
 use std::{
     fmt::Display,
     ops::{Add, Mul, Neg, Sub},
@@ -74,6 +74,16 @@ impl CubicPos {
         let ds = (s1 - s2).abs();
         (dq + dr + ds) / 2
     }
+
+    /// Converts this position to a `HexPos`.
+    pub fn to_pos(self) -> HexPos {
+        self.into()
+    }
+
+    /// Converts this position to an `OffsetPos`.
+    pub fn to_offset(self) -> OffsetPos {
+        self.into()
+    }
 }
 
 impl Display for CubicPos {
@@ -129,5 +139,16 @@ impl Mul<HexCoord> for CubicPos {
 
     fn mul(self, rhs: HexCoord) -> Self {
         Self(self.q() * rhs, self.r() * rhs)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck_macros::quickcheck;
+
+    #[quickcheck]
+    fn cubic_pos_conversion(pos: HexPos) {
+        assert_eq!(HexPos::from(CubicPos::from(pos)), pos);
     }
 }

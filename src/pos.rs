@@ -1,8 +1,8 @@
-use crate::CubicPos;
 use crate::delta::HexDelta;
 use crate::id::HexId;
 use crate::{Cartesian, HexCoord, Real, corner::HexCorner, edge::HexEdge};
-use std::f32::consts::{FRAC_PI_3, FRAC_PI_6};
+use crate::{CubicPos, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, OffsetPos, SQRT_3};
+use std::f64::consts::{FRAC_PI_3, FRAC_PI_6};
 use std::fmt::Display;
 use std::ops::{Add, Sub};
 
@@ -28,6 +28,9 @@ pub struct NearestEdge {
 /// (u, v), where u + v is always even.  The origin (0, 0) is at the bottom left
 /// corner of the grid, following typical math conventions.  The u coordinate
 /// increases to the right, and the v coordinate increases upwards.
+///
+/// These are "double height" coordinates in the terminology of
+/// [https://www.redblobgames.com/grids/hexagons].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HexPos(HexCoord, HexCoord);
 
@@ -66,7 +69,7 @@ impl HexPos {
     pub fn nearest_from_cartesian((x, y): Cartesian) -> Self {
         // Fractional axial coordinates for flat-topped hexes (R = 1.0)
         let frac_q = (2.0 / 3.0) * x;
-        let frac_r = (-1.0 / 3.0) * x + (3.0_f32.sqrt() / 3.0) * y;
+        let frac_r = (-1.0 / 3.0) * x + (SQRT_3 / 3.0) * y;
         let frac_s = -frac_q - frac_r;
 
         // Round to nearest integer cube coordinates
@@ -92,9 +95,9 @@ impl HexPos {
     /// the width of the hexagon is 1.0 unit.
     pub fn cartesian_center(self) -> Cartesian {
         let HexPos(u, v) = self;
-        let y_scale = (3.0_f32).sqrt() / 2.0;
-        let x_scale = 1.5;
-        (u as f32 * x_scale, v as f32 * y_scale)
+        let y_scale = HEX_VERTICAL_SPACING;
+        let x_scale = HEX_HORIZONTAL_SPACING;
+        (u as Real * x_scale, v as Real * y_scale)
     }
 
     /// Returns the Cartesian coordinates of the six corners of this hexagon, in
@@ -104,7 +107,7 @@ impl HexPos {
         let (cx, cy) = self.cartesian_center();
         let mut corners = [(0.0, 0.0); 6];
         for (i, corner) in corners.iter_mut().enumerate() {
-            let angle = (i as f32) * std::f32::consts::FRAC_PI_3;
+            let angle = (i as Real) * std::f64::consts::FRAC_PI_3;
             *corner = (cx + angle.cos(), cy + angle.sin());
         }
         corners
@@ -139,12 +142,7 @@ impl HexPos {
     /// Gets the edge of this position that is shared by a neighboring position,
     /// if any.  Returns None if the other position is not a neighbor.
     pub fn neighbor_edge(self, other: Self) -> Option<HexEdge> {
-        // TODO: Rewrite using HexDelta.
-        let HexPos(u1, v1) = self;
-        let HexPos(u2, v2) = other;
-        let du = u2 - u1;
-        let dv = v2 - v1;
-        match (du, dv) {
+        match (self - other).du_dv() {
             (1, 1) => Some(HexEdge::TopRight),
             (0, 2) => Some(HexEdge::Top),
             (-1, 1) => Some(HexEdge::TopLeft),
@@ -278,6 +276,16 @@ impl HexPos {
         let dcol = du.abs();
         let drow = dv.abs();
         dcol + 0.max((drow - dcol) / 2)
+    }
+
+    /// Converts this position to an `CubicPos`.
+    pub fn to_cubic(self) -> CubicPos {
+        self.into()
+    }
+
+    /// Converts this position to an `OffsetPos`.
+    pub fn to_offset(self) -> OffsetPos {
+        self.into()
     }
 }
 

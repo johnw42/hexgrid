@@ -58,6 +58,7 @@ pub use crate::{
     grid_size::{HexGridSize, HexGridSizeError},
     group::HexGroup,
     line::HexLineIterator,
+    offset::OffsetPos,
     perimeter::HexPerimeterIterator,
     pos::{HexPos, NearestCorner, NearestEdge},
     region::{HexRegion, HexRegionIterator},
@@ -76,6 +77,7 @@ mod grid_size;
 mod group;
 mod id;
 mod line;
+mod offset;
 mod perimeter;
 mod pos;
 mod region;
@@ -86,7 +88,7 @@ pub type HexCoord = i32;
 
 /// Cartesian distance type used for hex grid calculations and conversions.  Use implies that the
 /// width of a hexagon is 1.0 unit, and the height of a hexagon is sqrt(3)/2 units.
-pub type Real = f32;
+pub type Real = f64;
 
 /// Type of an angle measured in sixths of a full circle, assuming the positive
 /// direction is counter-clockwise.
@@ -97,7 +99,7 @@ pub type Cartesian = (Real, Real);
 
 /// Type of an angle measured in radians, assuming the positive direction is
 /// counter-clockwise from the positive u-axis.
-pub type Radians = f32;
+pub type Radians = Real;
 
 /// The width of a hexagon in Cartesian coordinates, which is 1.0 unit.
 pub const HEX_WIDTH: Real = 1.0;
