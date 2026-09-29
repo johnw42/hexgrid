@@ -88,7 +88,7 @@ impl HexPos {
             r = -q - s;
         }
 
-        CubicPos::from_q_r(q as HexCoord, r as HexCoord).into()
+        CubicPos::new(q as HexCoord, r as HexCoord).into()
     }
 
     /// Gets the Cartesian coordinates of the center of this hexagon, assuming
