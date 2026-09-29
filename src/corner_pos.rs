@@ -1,5 +1,5 @@
 use crate::{
-    HexCoord,
+    HexCoord, Sixths,
     corner::{HexCorner, NormHexCorner},
     delta::HexDelta,
     geometric::HexGeometric,
@@ -156,7 +156,7 @@ where
 }
 
 impl HexGeometric for HexCornerPos {
-    fn rotate_around(self, center: HexPos, steps: HexCoord) -> Self {
+    fn rotate_around(self, center: HexPos, steps: Sixths) -> Self {
         Self {
             pos: self.pos.rotate_around(center, steps),
             corner: self.corner.rotate(steps),

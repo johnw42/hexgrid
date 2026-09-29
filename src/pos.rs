@@ -1,7 +1,7 @@
 use crate::delta::HexDelta;
 use crate::geometric::HexGeometric;
 use crate::{Cartesian, HexCoord, Real, corner::HexCorner, edge::HexEdge};
-use crate::{CubicPos, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, OffsetPos, SQRT_3};
+use crate::{CubicPos, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, OffsetPos, SQRT_3, Sixths};
 use std::f64::consts::{FRAC_PI_3, FRAC_PI_6};
 use std::fmt::Display;
 use std::ops::{Add, Sub};
@@ -312,7 +312,7 @@ impl Sub<HexDelta> for HexPos {
 }
 
 impl HexGeometric for HexPos {
-    fn rotate_around(self, center: HexPos, steps: HexCoord) -> Self {
+    fn rotate_around(self, center: HexPos, steps: Sixths) -> Self {
         (self - center).rotated(steps) + center
     }
 

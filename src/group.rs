@@ -1,5 +1,6 @@
 use crate::{
-    HexCoord, container::HexPosContainer, delta::HexDelta, geometric::HexGeometric, pos::HexPos,
+    HexCoord, Sixths, container::HexPosContainer, delta::HexDelta, geometric::HexGeometric,
+    pos::HexPos,
 };
 use std::{collections::HashSet, hash::Hash};
 
@@ -63,7 +64,7 @@ where
 
     /// Returns a new group with all items rotated around the given center by
     /// the given number of 60 degree steps.
-    pub fn rotate_around(self, center: HexPos, steps: HexCoord) -> Self {
+    pub fn rotate_around(self, center: HexPos, steps: Sixths) -> Self {
         Self(
             self.0
                 .into_iter()

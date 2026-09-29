@@ -3,7 +3,7 @@ use hexgridrect::{
     Cartesian, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord, HexCorner, HexCornerPos,
     HexEdge, HexEdgePos, HexGrid, HexGridSize, HexGroup, HexLineIterator, HexPerimeterIterator,
     HexPos, HexPosContainer as _, HexRegionIterator, HexRingIterator, NearestCorner, NearestEdge,
-    Real,
+    Real, Sixths,
 };
 
 fn main() -> eframe::Result<()> {
@@ -106,7 +106,7 @@ impl GridSelection {
         }
     }
 
-    fn rotate_around(self, center: HexPos, steps: HexCoord) -> Self {
+    fn rotate_around(self, center: HexPos, steps: Sixths) -> Self {
         Self {
             hexes: self.hexes.rotate_around(center, steps),
             edges: self.edges.rotate_around(center, steps),
