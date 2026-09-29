@@ -1,16 +1,18 @@
-use crate::{HexCoord, container::HexPosContainer, delta::HexDelta, id::HexId, pos::HexPos};
-use std::collections::HashSet;
+use crate::{
+    HexCoord, container::HexPosContainer, delta::HexDelta, geometric::HexGeometric, pos::HexPos,
+};
+use std::{collections::HashSet, hash::Hash};
 
 /// A collection of hexagons, edges, or corners that can be manipulated as a
 /// group.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HexGroup<H = HexPos>(HashSet<H>)
 where
-    H: HexId;
+    H: HexGeometric + Eq + Hash;
 
 impl<H> Default for HexGroup<H>
 where
-    H: HexId,
+    H: HexGeometric + Eq + Hash,
 {
     fn default() -> Self {
         Self::new()
@@ -19,7 +21,7 @@ where
 
 impl<H> HexGroup<H>
 where
-    H: HexId,
+    H: HexGeometric + Eq + Hash,
 {
     /// Creates a new empty `HexGroup`.
     pub fn new() -> Self {
@@ -71,8 +73,8 @@ where
     }
 
     /// Returns a new group with all items shifted by the given delta.
-    pub fn shift(self, delta: HexDelta) -> Self {
-        Self(self.0.into_iter().map(|pos| pos.shift(delta)).collect())
+    pub fn translate(self, delta: HexDelta) -> Self {
+        Self(self.0.into_iter().map(|pos| pos.translate(delta)).collect())
     }
 }
 
@@ -111,7 +113,7 @@ impl HexPosContainer for HexGroup {
 
 impl<H> Extend<H> for HexGroup<H>
 where
-    H: HexId,
+    H: HexGeometric + Eq + Hash,
 {
     fn extend<T: IntoIterator<Item = H>>(&mut self, iter: T) {
         self.0.extend(iter);
@@ -120,7 +122,7 @@ where
 
 impl<H> IntoIterator for HexGroup<H>
 where
-    H: HexId,
+    H: HexGeometric + Eq + Hash,
 {
     type Item = H;
     type IntoIter = std::collections::hash_set::IntoIter<H>;
@@ -132,7 +134,7 @@ where
 
 impl<'a, H> IntoIterator for &'a HexGroup<H>
 where
-    H: HexId,
+    H: HexGeometric + Eq + Hash,
 {
     type Item = &'a H;
     type IntoIter = std::collections::hash_set::Iter<'a, H>;

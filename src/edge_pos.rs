@@ -2,7 +2,7 @@ use crate::{
     HexCoord,
     delta::HexDelta,
     edge::{HexEdge, NormHexEdge},
-    id::HexId,
+    geometric::HexGeometric,
     pos::HexPos,
 };
 use std::{
@@ -123,19 +123,7 @@ where
     }
 }
 
-impl HexId for HexEdgePos {
-    fn pos(&self) -> HexPos {
-        self.pos
-    }
-
-    fn corners(&self) -> impl Iterator<Item = crate::corner::HexCorner> + '_ {
-        std::iter::empty()
-    }
-
-    fn edges(&self) -> impl Iterator<Item = HexEdge> + '_ {
-        std::iter::once(self.edge)
-    }
-
+impl HexGeometric for HexEdgePos {
     fn rotate_around(self, center: HexPos, steps: HexCoord) -> Self {
         (
             self.pos.rotate_around(center, steps),
@@ -144,8 +132,8 @@ impl HexId for HexEdgePos {
             .into()
     }
 
-    fn shift(self, delta: HexDelta) -> Self {
-        (self.pos.shift(delta), self.edge).into()
+    fn translate(self, delta: HexDelta) -> Self {
+        (self.pos.translate(delta), self.edge).into()
     }
 }
 
