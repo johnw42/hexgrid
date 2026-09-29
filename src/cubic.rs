@@ -1,4 +1,4 @@
-use crate::{HexCoord, HexPos, OffsetPos};
+use crate::{HexCoord, HexDelta, HexPos, OffsetPos};
 use std::{
     fmt::Display,
     ops::{Add, Mul, Neg, Sub},
@@ -11,6 +11,9 @@ use std::{
 pub struct CubicPos(HexCoord, HexCoord);
 
 impl CubicPos {
+    /// The origin, (0,0,0).
+    pub const ORIGIN: CubicPos = CubicPos(0, 0);
+
     /// Creates a new `CubicPos` with the given q and r values.  The s value is
     /// implied by the constraint q + r + s = 0.
     pub const fn new(q: HexCoord, r: HexCoord) -> Self {
@@ -195,6 +198,24 @@ impl CubicDelta {
     /// Returns the dq, dr, and ds coordinates of the delta as a tuple.
     pub const fn dq_dr_ds(self) -> (HexCoord, HexCoord, HexCoord) {
         (self.dq(), self.dr(), self.ds())
+    }
+}
+
+impl Display for CubicDelta {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}, {}, {})", self.dq(), self.dr(), self.ds())
+    }
+}
+
+impl From<HexDelta> for CubicDelta {
+    fn from(delta: HexDelta) -> Self {
+        CubicPos::from(HexPos::ORIGIN + delta) - CubicPos::ORIGIN
+    }
+}
+
+impl From<CubicDelta> for HexDelta {
+    fn from(delta: CubicDelta) -> Self {
+        HexPos::from(CubicPos::ORIGIN + delta) - HexPos::ORIGIN
     }
 }
 

@@ -41,11 +41,20 @@ impl Display for HexPos {
 }
 
 impl HexPos {
+    /// The origin, (0,0).
+    pub const ORIGIN: HexPos = HexPos(0, 0);
+
     /// Creates a new `HexPos` with the given u and v values.  The sum of u and
     /// v must be even, otherwise this function will panic.
     pub const fn new(u: HexCoord, v: HexCoord) -> Self {
         assert!((u + v) % 2 == 0, "u + v must be even");
         HexPos(u, v)
+    }
+
+    /// Creates a new `HexPos` with the given u and v values.  The sum of u and
+    /// v must be even, otherwise this function will panic.
+    pub const fn from_u_v((u, v): (HexCoord, HexCoord)) -> Self {
+        HexPos::new(u, v)
     }
 
     /// Returns the u coordinate of the hexagon position.
