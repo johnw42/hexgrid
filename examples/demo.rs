@@ -6,13 +6,16 @@ use hexgridrect::{
     Real,
 };
 
-fn main() {
-    let native_options = eframe::NativeOptions::default();
-    let _ = eframe::run_native(
+fn main() -> eframe::Result<()> {
+    let native_options = eframe::NativeOptions {
+        persistence_path: None,
+        ..eframe::NativeOptions::default()
+    };
+    eframe::run_native(
         "hexgridrect demo",
         native_options,
         Box::new(|cc| Ok(Box::new(DemoApp::new(cc)))),
-    );
+    )
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -363,6 +366,8 @@ impl DemoApp {
 impl eframe::App for DemoApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let old_init_selection = self.init_selection;
+
+        ui.ctx().set_visuals(egui::Visuals::dark());
 
         egui::CentralPanel::default().show(ui, |ui| {
             egui::Grid::new("my_grid").show(ui, |ui| {
