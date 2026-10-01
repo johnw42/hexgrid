@@ -70,20 +70,14 @@ impl Iterator for HexRingIterator {
 /// given center hexagon, starting from the center and expanding outward. The
 /// iterator yields a pair containing the position of the hexagon and its
 /// distance from the center, and never terminates.
-pub struct HexDiskIterator {
-    center: HexPos,
-    ring_iterator: HexRingIterator,
-}
+pub struct HexDiskIterator(HexRingIterator);
 
 impl HexDiskIterator {
     /// Creates a new iterator that will yield the positions of hexagons in a
     /// hexagonal disk around the given `center` hexagon, starting from the
     /// center and expanding outward.
     pub fn new(center: HexPos) -> Self {
-        Self {
-            center,
-            ring_iterator: HexRingIterator::new(center, 0),
-        }
+        Self(HexRingIterator::new(center, 0))
     }
 }
 
@@ -91,24 +85,21 @@ impl Iterator for HexDiskIterator {
     type Item = (HexPos, HexCoord);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let next = self
-            .ring_iterator
-            .next()
-            .map(|pos| (pos, self.ring_iterator.radius));
+        let next = self.0.next().map(|pos| (pos, self.0.radius));
         if next.is_none() {
             // self.ring_iterator = RingIterator::new(self.center, self.ring_iterator.radius + 1);
-            let next_pos = if self.ring_iterator.radius == 0 {
-                self.ring_iterator.pos
+            let next_pos = if self.0.radius == 0 {
+                self.0.pos
             } else {
-                self.ring_iterator.pos.neighbor(HexEdge::TopRight)
+                self.0.pos.neighbor(HexEdge::TopRight)
             };
-            self.ring_iterator = HexRingIterator {
+            self.0 = HexRingIterator {
                 pos: next_pos,
                 start: next_pos,
                 direction: HexEdge::TopLeft,
-                steps_remaining: self.ring_iterator.radius + 1,
+                steps_remaining: self.0.radius + 1,
                 done: false,
-                radius: self.ring_iterator.radius + 1,
+                radius: self.0.radius + 1,
             };
             return self.next();
         }
