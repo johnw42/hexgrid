@@ -18,16 +18,12 @@
 //! [`HexCornerPos`] and [`HexEdgePos`], which represent the position of a
 //! corner or edge in the hexagonal grid.
 //!
-//! An arbitrary group of [`HexPos`] values can be represented as a
-//! [`HexGroup`], allowing groups of positions to be translated and rotated as a
-//! unit.
-//!
 //! Some special iterators are provided for particular traversals of the
 //! hexagonal grid:
 //!
 //! * [`HexRegionIterator`] iterates over all hexagonal grid positions in a
 //!   rectangular region defined by minimum and maximum u and v coordinates.
-//! * [`HexRingIterator`] iterates over the positions of hexagons in a ring
+//! * [`RingIterator`] iterates over the positions of hexagons in a ring
 //!   around a given center hexagon, at a given radius.
 //! * [`HexPerimeterIterator`] iterates the boundary of a group of hexagons.
 //! * [`HexLineIterator`] iterates a straight line between two hexagons.
@@ -54,15 +50,15 @@ pub use crate::{
     delta::HexDelta,
     edge::{HexEdge, NormHexEdge},
     edge_pos::HexEdgePos,
+    geometric::HexGeometric,
     grid::HexGrid,
     grid_size::{HexGridSize, HexGridSizeError},
-    group::HexGroup,
     line::HexLineIterator,
     offset::OffsetPos,
     perimeter::HexPerimeterIterator,
     pos::{HexPos, NearestCorner, NearestEdge},
     region::{HexRegion, HexRegionIterator},
-    ring::HexRingIterator,
+    ring::{HexDiskIterator, HexRingIterator},
 };
 
 mod container;
@@ -75,7 +71,6 @@ mod edge_pos;
 mod geometric;
 mod grid;
 mod grid_size;
-mod group;
 mod line;
 mod offset;
 mod perimeter;

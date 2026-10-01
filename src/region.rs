@@ -3,6 +3,7 @@ use crate::{
     HexCornerPos, HexEdge, HexEdgePos, HexPos, HexPosContainer, NormHexCorner, NormHexEdge,
 };
 
+/// A rectangular region of a hexagonal grid, defined by minimum and maximum u and v coordinates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HexRegion {
     min_u: HexCoord,
@@ -12,6 +13,9 @@ pub struct HexRegion {
 }
 
 impl HexRegion {
+    /// Create a new `HexRegion` with the specified minimum and maximum u and v coordinates.
+    ///
+    /// The region will be empty if the minimum coordinates are greater than the maximum coordinates.
     pub fn new(min_u: HexCoord, min_v: HexCoord, max_u: HexCoord, max_v: HexCoord) -> Self {
         Self {
             min_u,

@@ -1,7 +1,8 @@
 use crate::{HexCoord, HexEdge, HexPos};
 
-/// An iterator that yields the positions of hexagons in a ring around a given
-/// center hexagon, at a given radius.
+/// An iterator that yields the positions of hexagons in a hexagonal ring
+/// around a given center hexagon, yielding hexagons at a specified distance
+/// from the center.
 #[derive(Debug, Clone)]
 pub struct HexRingIterator {
     pos: HexPos,
@@ -65,10 +66,61 @@ impl Iterator for HexRingIterator {
     }
 }
 
+/// An iterator that yields the positions of hexagons in hexagonal disk around a
+/// given center hexagon, starting from the center and expanding outward. The
+/// iterator yields a pair containing the position of the hexagon and its
+/// distance from the center, and never terminates.
+pub struct HexDiskIterator {
+    center: HexPos,
+    ring_iterator: HexRingIterator,
+}
+
+impl HexDiskIterator {
+    /// Creates a new iterator that will yield the positions of hexagons in a
+    /// hexagonal disk around the given `center` hexagon, starting from the
+    /// center and expanding outward.
+    pub fn new(center: HexPos) -> Self {
+        Self {
+            center,
+            ring_iterator: HexRingIterator::new(center, 0),
+        }
+    }
+}
+
+impl Iterator for HexDiskIterator {
+    type Item = (HexPos, HexCoord);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let next = self
+            .ring_iterator
+            .next()
+            .map(|pos| (pos, self.ring_iterator.radius));
+        if next.is_none() {
+            // self.ring_iterator = RingIterator::new(self.center, self.ring_iterator.radius + 1);
+            let next_pos = if self.ring_iterator.radius == 0 {
+                self.ring_iterator.pos
+            } else {
+                self.ring_iterator.pos.neighbor(HexEdge::TopRight)
+            };
+            self.ring_iterator = HexRingIterator {
+                pos: next_pos,
+                start: next_pos,
+                direction: HexEdge::TopLeft,
+                steps_remaining: self.ring_iterator.radius + 1,
+                done: false,
+                radius: self.ring_iterator.radius + 1,
+            };
+            return self.next();
+        }
+        next
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use quickcheck_macros::quickcheck;
+    use std::collections::HashSet;
 
     #[quickcheck]
     fn ring_iterator0(center: HexPos) {
@@ -120,5 +172,17 @@ mod tests {
         for pos in ring_positions {
             assert_eq!(center.steps_to(pos), radius);
         }
+    }
+
+    #[quickcheck]
+    fn disk_iterator(center: HexPos, radius: u8) {
+        let radius = radius % 64;
+        let expected = (0..=radius as HexCoord)
+            .flat_map(|r| HexRingIterator::new(center, r).map(move |pos| (pos, r)))
+            .collect::<HashSet<_>>();
+        let actual = HexDiskIterator::new(center)
+            .take_while(|(_, r)| *r <= radius as HexCoord)
+            .collect::<HashSet<_>>();
+        assert_eq!(actual, expected);
     }
 }

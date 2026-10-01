@@ -1,10 +1,11 @@
 use eframe::egui;
 use hexgridrect::{
     Cartesian, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord, HexCorner, HexCornerPos,
-    HexEdge, HexEdgePos, HexGrid, HexGridSize, HexGroup, HexLineIterator, HexPerimeterIterator,
-    HexPos, HexPosContainer as _, HexRegionIterator, HexRingIterator, NearestCorner, NearestEdge,
-    Real, Sixths,
+    HexDiskIterator, HexEdge, HexEdgePos, HexGeometric as _, HexGrid, HexGridSize, HexLineIterator,
+    HexPerimeterIterator, HexPos, HexPosContainer as _, HexRegionIterator, HexRingIterator,
+    NearestCorner, NearestEdge, Real, Sixths,
 };
+use std::collections::HashSet;
 
 fn main() -> eframe::Result<()> {
     let native_options = eframe::NativeOptions {
@@ -31,6 +32,7 @@ enum DragSelection {
     Rectangle,
     Line,
     Ring,
+    Disk,
 }
 
 #[derive(Debug)]
@@ -49,17 +51,17 @@ type DemoGrid = HexGrid<GridContent<HexPos>, GridContent<HexEdgePos>, GridConten
 
 #[derive(Debug, Default, Clone)]
 struct GridSelection {
-    hexes: HexGroup<HexPos>,
-    edges: HexGroup<HexEdgePos>,
-    corners: HexGroup<HexCornerPos>,
+    hexes: HashSet<HexPos>,
+    edges: HashSet<HexEdgePos>,
+    corners: HashSet<HexCornerPos>,
 }
 
 impl GridSelection {
     fn new(grid: &DemoGrid) -> Self {
         let mut result = Self {
-            hexes: HexGroup::new(),
-            edges: HexGroup::new(),
-            corners: HexGroup::new(),
+            hexes: HashSet::new(),
+            edges: HashSet::new(),
+            corners: HashSet::new(),
         };
         for pos in grid.iter_hexes() {
             if grid.hex(pos).is_active {
@@ -108,9 +110,21 @@ impl GridSelection {
 
     fn rotate_around(self, center: HexPos, steps: Sixths) -> Self {
         Self {
-            hexes: self.hexes.rotate_around(center, steps),
-            edges: self.edges.rotate_around(center, steps),
-            corners: self.corners.rotate_around(center, steps),
+            hexes: self
+                .hexes
+                .into_iter()
+                .map(|pos| pos.rotate_around(center, steps))
+                .collect(),
+            edges: self
+                .edges
+                .into_iter()
+                .map(|edge| edge.rotate_around(center, steps))
+                .collect(),
+            corners: self
+                .corners
+                .into_iter()
+                .map(|corner| corner.rotate_around(center, steps))
+                .collect(),
         }
     }
 }
@@ -345,15 +359,26 @@ impl DemoApp {
                         }
                     }
                 }
-                DragSelection::Ring => {
+                DragSelection::Ring | DragSelection::Disk => {
                     let center =
                         HexPos::nearest_from_cartesian(self.translation.gui_to_hex(drag_start));
                     let radius = center.steps_to(HexPos::nearest_from_cartesian(
                         self.translation.gui_to_hex(drag_end),
                     )) as HexCoord;
-                    for hex in HexRingIterator::new(center, radius) {
-                        if grid.has_hex(hex) {
-                            grid.hex_mut(hex).is_active = true;
+                    if self.drag_selection == DragSelection::Disk {
+                        for (hex, current_radius) in HexDiskIterator::new(center) {
+                            if current_radius > radius {
+                                break;
+                            }
+                            if grid.has_hex(hex) {
+                                grid.hex_mut(hex).is_active = true;
+                            }
+                        }
+                    } else {
+                        for hex in HexRingIterator::new(center, radius) {
+                            if grid.has_hex(hex) {
+                                grid.hex_mut(hex).is_active = true;
+                            }
                         }
                     }
                 }
@@ -403,6 +428,7 @@ impl eframe::App for DemoApp {
                 );
                 ui.radio_value(&mut self.drag_selection, DragSelection::Line, "Line");
                 ui.radio_value(&mut self.drag_selection, DragSelection::Ring, "Ring");
+                ui.radio_value(&mut self.drag_selection, DragSelection::Disk, "Disk ");
             });
 
             if self
