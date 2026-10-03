@@ -57,18 +57,19 @@ impl Iterator for LineIterator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::HexDelta;
     use quickcheck_macros::quickcheck;
 
     #[quickcheck]
-    fn line_iterator_terminates(start: HexPos, end: HexPos) {
-        dbg!(&start, &end);
+    fn line_iterator_terminates(start: HexPos, delta: HexDelta) {
+        let end = start + delta;
         let iter = LineIterator::new(start, end);
         let (du, dv) = (start - end).du_dv();
-        let to_take = (2 * du.abs() + dv.abs() + 1) as usize;
+        let to_take = (2 * du.abs() + dv.abs() + 2) as usize;
         let count = iter.take(to_take).count();
         assert!(
             count < to_take,
-            "Line iterator from {start} to {end} produced too many hexes: {count} > {to_take}",
+            "Line iterator from {start} to {end} produced too many hexes: {count} >= {to_take}",
         );
     }
 }

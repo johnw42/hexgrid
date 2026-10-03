@@ -76,6 +76,9 @@ mod pos;
 mod rectangle;
 mod ring;
 
+#[cfg(test)]
+mod setdiff;
+
 /// Integer type used for hex grid coordinates, and other related purposes.
 pub type HexCoord = i32;
 

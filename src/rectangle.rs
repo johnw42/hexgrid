@@ -2,7 +2,6 @@ use crate::{
     Cartesian, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HEX_WIDTH, HexCoord, HexCorner,
     HexCornerPos, HexEdge, HexEdgePos, HexPos, HexPosContainer, NormHexCorner, NormHexEdge,
 };
-use std::array::IntoIter;
 
 /// A rectangular region of a hexagonal grid, defined by minimum and maximum u and v coordinates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -43,13 +42,22 @@ impl HexRectangle {
     }
 
     /// The width of the region in terms of the number of hexes in the u direction.
-    pub const fn width(&self) -> HexCoord {
-        self.max_u - self.min_u + 1
+    pub fn width(&self) -> HexCoord {
+        0.max(self.max_u - self.min_u + 1)
     }
 
     /// The height of the region in terms of the number of hexes in the v direction.
-    pub const fn height(&self) -> HexCoord {
-        self.max_v - self.min_v + 1
+    pub fn height(&self) -> HexCoord {
+        0.max(self.max_v - self.min_v + 1)
+    }
+
+    /// Tests whether the region is empty (i.e. it contains no hexes).
+    pub fn is_empty(&self) -> bool {
+        self.min_u > self.max_u
+            || self.min_v > self.max_v
+            || self.min_v == self.max_v
+                && self.min_u == self.max_u
+                && (self.min_u + self.min_v) % 2 != 0
     }
 
     /// Return true iff a grid of this size contains the specified edge
@@ -58,6 +66,9 @@ impl HexRectangle {
     pub fn contains_edge(&self, edge_pos: HexEdgePos) -> bool {
         if self.contains_hex(edge_pos.pos()) {
             return true;
+        }
+        if self.is_empty() {
+            return false;
         }
 
         let (pos, edge) = edge_pos.norm().pos_edge();
@@ -69,6 +80,18 @@ impl HexRectangle {
             max_v,
         } = *self;
 
+        // Handle the special case where the rectangle has only one row of
+        // hexes.  This case is strange because none of the hexes are neighbors
+        // of each other.
+        if min_v == max_v {
+            return match edge {
+                NormHexEdge::TopRight if v == min_v - 1 => (min_u - 1..=max_u - 1).contains(&u),
+                NormHexEdge::Top if v == min_v - 2 => (min_u..=max_u).contains(&u),
+                NormHexEdge::TopLeft if v == min_v - 1 => (min_u + 1..=max_u + 1).contains(&u),
+                _ => self.contains_hex(pos),
+            };
+        }
+
         match edge {
             NormHexEdge::TopRight if u == min_u - 1 => (min_v - 1..max_v).contains(&v),
             NormHexEdge::TopRight if v == min_v - 1 => {
@@ -76,7 +99,9 @@ impl HexRectangle {
             }
             NormHexEdge::Top if (min_v - 2..min_v).contains(&v) => (min_u..=max_u).contains(&u),
             NormHexEdge::TopLeft if u == max_u + 1 => (min_v - 1..max_v).contains(&v),
-            NormHexEdge::TopLeft if v == min_v - 1 => u % 2 != 0 && (min_u..=max_u).contains(&u),
+            NormHexEdge::TopLeft if v == min_v - 1 => {
+                u % 2 != 0 && (min_u + 1..=max_u).contains(&u)
+            }
             _ => self.contains_hex(pos),
         }
     }
@@ -88,6 +113,9 @@ impl HexRectangle {
         if self.contains_hex(corner_pos.pos()) {
             return true;
         }
+        if self.is_empty() {
+            return false;
+        }
 
         let (pos, corner) = corner_pos.norm().pos_corner();
         let (u, v) = pos.u_v();
@@ -98,12 +126,26 @@ impl HexRectangle {
             max_v,
         } = *self;
 
+        // Handle the special case where the rectangle has only one row of
+        // hexes.  This case is strange because none of the hexes are neighbors
+        // of each other.
+        if min_v == max_v {
+            return match corner {
+                NormHexCorner::TopRight if v == min_v - 1 => (min_u - 1..=max_u - 1).contains(&u),
+                NormHexCorner::TopLeft if v == min_v - 1 => (min_u + 1..=max_u + 1).contains(&u),
+                _ if v == min_v - 2 => (min_u..=max_u).contains(&u),
+                _ => self.contains_hex(pos),
+            };
+        }
+
         let corner_u_matches = match corner {
             NormHexCorner::TopRight => u == min_u - 1,
             NormHexCorner::TopLeft => u == max_u + 1,
         };
         corner_u_matches && (min_v - 1..max_v).contains(&v)
-            || (-2..=0).contains(&v) && (min_u..=max_u).contains(&u) && max_v - min_v + 1 > 0
+            || (min_v - 2..=min_v).contains(&v)
+                && (min_u..=max_u).contains(&u)
+                && max_v - min_v + 1 > 0
             || self.contains_hex(pos)
     }
 
@@ -116,6 +158,28 @@ impl HexRectangle {
     pub fn iter_corners(&self) -> HexRectangleCornerIterator {
         HexRectangleCornerIterator::new(*self)
     }
+
+    #[cfg(test)]
+    fn inflate(self) -> Self {
+        Self {
+            min_u: self.min_u - 1,
+            min_v: self.min_v - 1,
+            max_u: self.max_u + 1,
+            max_v: self.max_v + 1,
+        }
+    }
+}
+
+impl Default for HexRectangle {
+    /// Creates a new empty rectangle.
+    fn default() -> Self {
+        Self {
+            min_u: 0,
+            min_v: 0,
+            max_u: -1,
+            max_v: -1,
+        }
+    }
 }
 
 impl HexPosContainer for HexRectangle {
@@ -126,6 +190,7 @@ impl HexPosContainer for HexRectangle {
             && pos.u() <= self.max_u
             && pos.v() >= self.min_v
             && pos.v() <= self.max_v
+            && !self.is_empty()
     }
 
     fn iter_hexes(&self) -> Self::Iterator<'_> {
@@ -216,13 +281,13 @@ pub struct HexRectangleEdgeIterator {
 }
 
 impl HexRectangleEdgeIterator {
-    fn new(region: HexRectangle) -> Self {
-        let mut pos_iter = region.iter_hexes();
+    fn new(rect: HexRectangle) -> Self {
+        let mut pos_iter = rect.iter_hexes();
         let pos = pos_iter.next();
         Self {
-            min_u: region.min_u,
-            min_v: region.min_v,
-            max_u: region.max_u,
+            min_u: rect.min_u,
+            min_v: rect.min_v,
+            max_u: rect.max_u,
             edge: HexEdge::TopRight,
             pos,
             pos_iter,
@@ -264,14 +329,14 @@ pub struct HexRectangleCornerIterator {
 }
 
 impl HexRectangleCornerIterator {
-    fn new(region: HexRectangle) -> Self {
-        let mut pos_iter = region.iter_hexes();
+    fn new(rect: HexRectangle) -> Self {
+        let mut pos_iter = rect.iter_hexes();
         let pos = pos_iter.next();
         Self {
-            min_u: region.min_u,
-            min_v: region.min_v,
-            max_u: region.max_u,
-            max_v: region.max_v,
+            min_u: rect.min_u,
+            min_v: rect.min_v,
+            max_u: rect.max_u,
+            max_v: rect.max_v,
             corner: HexCorner::TopRight,
             pos,
             pos_iter,
@@ -322,16 +387,20 @@ impl Iterator for HexRectangleCornerIterator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{assert_eq_sets, assert_unique};
     use quickcheck::Arbitrary;
     use quickcheck_macros::quickcheck;
     use std::collections::HashSet;
 
     impl Arbitrary for HexRectangle {
         fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-            let min_u = HexCoord::arbitrary(g) % 4;
-            let min_v = HexCoord::arbitrary(g) % 4;
-            let max_u = min_u + HexCoord::arbitrary(g).rem_euclid(4);
-            let max_v = min_v + HexCoord::arbitrary(g).rem_euclid(4);
+            if u8::arbitrary(g) % 16 == 0 {
+                return Self::default();
+            }
+            let min_u = (u8::arbitrary(g) % 4) as HexCoord;
+            let min_v = (u8::arbitrary(g) % 4) as HexCoord;
+            let max_u = min_u + ((u8::arbitrary(g) % 4) as HexCoord);
+            let max_v = min_v + ((u8::arbitrary(g) % 4) as HexCoord);
             Self::new(min_u, min_v, max_u, max_v)
         }
 
@@ -340,29 +409,90 @@ mod tests {
             let height = self.height();
             let min_u = self.min_u;
             let min_v = self.min_v;
-            Box::new(
-                (1..=(width + height))
-                    .flat_map(move |shrink_amount| {
-                        if shrink_amount % 2 == 0 {
-                            vec![(width - shrink_amount / 2, height - shrink_amount / 2)]
-                                .into_iter()
-                        } else {
-                            vec![
-                                (width - shrink_amount / 2, height - (shrink_amount + 1) / 2),
-                                (width - (shrink_amount + 1) / 2, height - shrink_amount / 2),
-                            ]
-                            .into_iter()
-                        }
-                    })
-                    .map(move |(w, h)| {
-                        HexRectangle::new(min_u, min_v, min_u + w - 1, min_v + h - 1)
-                    }),
-            )
+            let mut items = Vec::new();
+            if width > height {
+                items.push(HexRectangle::new(
+                    min_u,
+                    min_v,
+                    min_u + width - 2,
+                    min_v + height - 1,
+                ));
+            } else if height > 0 {
+                items.push(HexRectangle::new(
+                    min_u,
+                    min_v,
+                    min_u + width - 1,
+                    min_v + height - 2,
+                ));
+            }
+            Box::new(items.into_iter())
         }
     }
 
+    #[test]
+    fn empty_rect() {
+        let rect = HexRectangle::default();
+        assert_eq!(rect.width(), 0);
+        assert_eq!(rect.height(), 0);
+        assert!(rect.iter_hexes().next().is_none());
+        assert!(rect.iter_edges().next().is_none());
+        assert!(rect.iter_corners().next().is_none());
+    }
+
+    #[test]
+    fn rect1_nonempty() {
+        let rect = HexRectangle::new(0, 0, 0, 0);
+        assert!(!rect.is_empty());
+        assert_eq!(rect.width(), 1);
+        assert_eq!(rect.height(), 1);
+        assert_eq!(rect.iter_hexes().count(), 1);
+        assert_eq!(rect.iter_edges().count(), 6);
+        assert_eq!(rect.iter_corners().count(), 6);
+
+        assert!(rect.contains_hex(HexPos::ORIGIN));
+        for edge in HexEdge::ALL {
+            assert!(rect.contains_edge(HexEdgePos::from((HexPos::ORIGIN, edge))));
+            let neighbor = HexPos::ORIGIN.neighbor(edge);
+            let neighbor_edge = edge.opposite();
+            assert!(!rect.contains_hex(neighbor));
+            for other_edge in HexEdge::ALL {
+                assert_eq!(
+                    other_edge == neighbor_edge,
+                    rect.contains_edge(HexEdgePos::from((neighbor, other_edge))),
+                    "edge: {:?}, other_edge: {:?}, neighbor: {:?}",
+                    edge,
+                    other_edge,
+                    neighbor
+                );
+            }
+        }
+        for corner in HexCorner::ALL {
+            assert!(rect.contains_corner(HexCornerPos::from((HexPos::ORIGIN, corner))));
+            for other_corner in HexCorner::ALL {
+                for (neighbor, neighbor_corner) in HexPos::ORIGIN.neighbors_at_corner(corner) {
+                    if other_corner == neighbor_corner {
+                        assert!(
+                            rect.contains_corner(HexCornerPos::from((neighbor, neighbor_corner)))
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn rect1_empty() {
+        let rect = HexRectangle::new(1, 0, 1, 0);
+        assert!(rect.is_empty());
+        assert_eq!(rect.width(), 1);
+        assert_eq!(rect.height(), 1);
+        assert_eq!(rect.iter_hexes().count(), 0);
+        assert_eq!(rect.iter_edges().count(), 0);
+        assert_eq!(rect.iter_corners().count(), 0);
+    }
+
     #[quickcheck]
-    fn region_iterator(size: HexRectangle) {
+    fn hex_iterator(size: HexRectangle) {
         let expected = (size.min_v..=size.max_v)
             .flat_map(|v| {
                 (size.min_u..=size.max_u)
@@ -375,35 +505,100 @@ mod tests {
     }
 
     #[quickcheck]
-    fn edge_iterator(region: HexRectangle) {
-        let mut seen_edges = HashSet::new();
-        for pos in region.iter_hexes() {
+    fn contains_edge(rect: HexRectangle) {
+        let mut expected = HashSet::new();
+        for pos in rect.iter_hexes() {
             for edge in HexEdge::ALL {
-                seen_edges.insert(HexEdgePos::from((pos, edge)).norm());
+                expected.insert(HexEdgePos::from((pos, edge)).norm());
             }
         }
-        let iter_edges = region.iter_edges().map(|e| e.norm()).collect::<Vec<_>>();
-        assert_eq!(seen_edges.len(), iter_edges.len());
-        assert_eq!(seen_edges, iter_edges.into_iter().collect::<HashSet<_>>());
+        let mut actual = HashSet::new();
+        for pos in rect.inflate().iter_hexes() {
+            for edge in HexEdge::ALL {
+                let edge_pos = HexEdgePos::from((pos, edge));
+                if rect.contains_edge(edge_pos) {
+                    actual.insert(edge_pos.norm());
+                }
+            }
+        }
+        assert_eq_sets!(expected, actual);
     }
 
     #[quickcheck]
-    fn corner_iterator(region: HexRectangle) {
-        let mut expected_corners = HashSet::new();
-        for pos in region.iter_hexes() {
+    fn contains_corner(rect: HexRectangle) {
+        let mut expected = HashSet::new();
+        for pos in rect.iter_hexes() {
             for corner in HexCorner::ALL {
-                expected_corners.insert(HexCornerPos::from((pos, corner)).norm());
+                expected.insert(HexCornerPos::from((pos, corner)).norm());
             }
         }
-        let actual_corners = region.iter_corners().collect::<Vec<_>>();
-        assert_eq!(
-            expected_corners.clone(),
-            actual_corners
-                .clone()
-                .iter()
-                .map(|c| c.norm())
-                .collect::<HashSet<_>>()
-        );
-        assert_eq!(expected_corners.len(), actual_corners.len());
+        let mut actual = HashSet::new();
+        for pos in rect.inflate().iter_hexes() {
+            for corner in HexCorner::ALL {
+                let corner_pos = HexCornerPos::from((pos, corner));
+                if rect.contains_corner(corner_pos) {
+                    actual.insert(corner_pos.norm());
+                }
+            }
+        }
+        assert_eq!(expected, actual);
+    }
+
+    #[quickcheck]
+    fn edge_iterator1(rect: HexRectangle) {
+        let mut expected = HashSet::new();
+        for pos in rect.iter_hexes() {
+            for edge in HexEdge::ALL {
+                expected.insert(HexEdgePos::from((pos, edge)).norm());
+            }
+        }
+        let actual = rect.iter_edges().map(|e| e.norm()).collect::<Vec<_>>();
+        assert_unique!(actual.clone());
+        assert_eq_sets!(expected, actual);
+    }
+
+    #[quickcheck]
+    fn edge_iterator2(rect: HexRectangle) {
+        let mut expected = HashSet::new();
+        for pos in rect.inflate().iter_hexes() {
+            for edge in HexEdge::ALL {
+                let edge_pos = HexEdgePos::from((pos, edge));
+                if rect.contains_edge(edge_pos) {
+                    expected.insert(edge_pos.norm());
+                }
+            }
+        }
+        let actual = rect.iter_edges().map(|e| e.norm()).collect::<Vec<_>>();
+        assert_unique!(actual.clone());
+        assert_eq_sets!(expected, actual);
+    }
+
+    #[quickcheck]
+    fn corner_iterator1(rect: HexRectangle) {
+        let mut expected = HashSet::new();
+        for pos in rect.iter_hexes() {
+            for corner in HexCorner::ALL {
+                expected.insert(HexCornerPos::from((pos, corner)).norm());
+            }
+        }
+        let actual = rect.iter_corners().map(|c| c.norm()).collect::<Vec<_>>();
+        assert_unique!(actual.clone());
+        assert_eq_sets!(expected, actual);
+    }
+
+    #[quickcheck]
+    fn corner_iterator2(rect: HexRectangle) {
+        let mut expected = HashSet::new();
+        for pos in rect.inflate().iter_hexes() {
+            for corner in HexCorner::ALL {
+                let corner_pos = HexCornerPos::from((pos, corner));
+                if rect.contains_corner(corner_pos) {
+                    expected.insert(corner_pos.norm());
+                }
+            }
+        }
+        let actual = rect.iter_corners().map(|c| c.norm()).collect::<Vec<_>>();
+        assert_unique!(actual.clone());
+        assert_eq_sets!(expected, actual);
     }
 }
