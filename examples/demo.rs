@@ -2,7 +2,7 @@ use eframe::egui;
 use hexgridrect::{
     Cartesian, DiskIterator, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord, HexCorner,
     HexCornerPos, HexEdge, HexEdgePos, HexGeometric as _, HexGrid, HexGridSize, HexPos,
-    HexPosContainer as _, HexRectangleIterator, LineIterator, NearestCorner, NearestEdge,
+    HexPosContainer as _, HexRectangle, LineIterator, NearestCorner, NearestEdge,
     PerimeterIterator, Real, RingIterator, Sixths,
 };
 use std::collections::HashSet;
@@ -340,7 +340,7 @@ impl DemoApp {
                         egui::Stroke::new(2.0, egui::Color32::from_white_alpha(0x80)),
                         egui::StrokeKind::Middle,
                     );
-                    for hex in HexRectangleIterator::cartesian(
+                    for hex in HexRectangle::cartesian(
                         self.translation.gui_to_hex(selected_rect.left_bottom()),
                         self.translation.gui_to_hex(selected_rect.right_top()),
                     ) {

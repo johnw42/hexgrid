@@ -2,6 +2,7 @@ use crate::{
     Cartesian, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HEX_WIDTH, HexCoord, HexCorner,
     HexCornerPos, HexEdge, HexEdgePos, HexPos, HexPosContainer, NormHexCorner, NormHexEdge,
 };
+use std::array::IntoIter;
 
 /// A rectangular region of a hexagonal grid, defined by minimum and maximum u and v coordinates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -134,6 +135,24 @@ impl HexPosContainer for HexRectangle {
     fn len(&self) -> usize {
         (self.max_u - self.min_u + 1) as usize * (self.max_v - self.min_v + 1) as usize / 2
             + ((self.max_u - self.min_u + 1) as usize * (self.max_v - self.min_v + 1) as usize % 2)
+    }
+}
+
+impl IntoIterator for HexRectangle {
+    type Item = HexPos;
+    type IntoIter = HexRectangleIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        HexRectangleIterator::new(self)
+    }
+}
+
+impl IntoIterator for &HexRectangle {
+    type Item = HexPos;
+    type IntoIter = HexRectangleIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        HexRectangleIterator::new(*self)
     }
 }
 
