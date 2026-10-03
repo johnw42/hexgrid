@@ -1,9 +1,9 @@
 use eframe::egui;
 use hexgridrect::{
-    Cartesian, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord, HexCorner, HexCornerPos,
-    HexDiskIterator, HexEdge, HexEdgePos, HexGeometric as _, HexGrid, HexGridSize, HexLineIterator,
-    HexPerimeterIterator, HexPos, HexPosContainer as _, HexRegionIterator, HexRingIterator,
-    NearestCorner, NearestEdge, Real, Sixths,
+    Cartesian, DiskIterator, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord, HexCorner,
+    HexCornerPos, HexEdge, HexEdgePos, HexGeometric as _, HexGrid, HexGridSize, HexPos,
+    HexPosContainer as _, HexRectangleIterator, LineIterator, NearestCorner, NearestEdge,
+    PerimeterIterator, Real, RingIterator, Sixths,
 };
 use std::collections::HashSet;
 
@@ -212,7 +212,7 @@ impl DemoApp {
                 .filter(|&pos| !grid.hex(pos).is_active)
                 .collect::<Vec<_>>();
             self.grid_selection = GridSelection::default();
-            for edge_pos in HexPerimeterIterator::new(&unselected_hexes) {
+            for edge_pos in PerimeterIterator::new(&unselected_hexes) {
                 grid.edge_mut(edge_pos).is_active = true;
                 self.grid_selection.edges.insert(edge_pos);
             }
@@ -224,7 +224,7 @@ impl DemoApp {
         ctx.animate_value_with_time(self.id, 0.0, 0.0);
         if let Some(grid) = self.grid.as_mut() {
             self.perimeter_animation =
-                HexPerimeterIterator::new_from(HexPos::new(0, 0), grid).collect();
+                PerimeterIterator::new_from(HexPos::new(0, 0), grid).collect();
         }
     }
 
@@ -340,7 +340,7 @@ impl DemoApp {
                         egui::Stroke::new(2.0, egui::Color32::from_white_alpha(0x80)),
                         egui::StrokeKind::Middle,
                     );
-                    for hex in HexRegionIterator::cartesian(
+                    for hex in HexRectangleIterator::cartesian(
                         self.translation.gui_to_hex(selected_rect.left_bottom()),
                         self.translation.gui_to_hex(selected_rect.right_top()),
                     ) {
@@ -350,7 +350,7 @@ impl DemoApp {
                     }
                 }
                 DragSelection::Line => {
-                    for hex in HexLineIterator::new(
+                    for hex in LineIterator::new(
                         HexPos::nearest_from_cartesian(self.translation.gui_to_hex(drag_start)),
                         HexPos::nearest_from_cartesian(self.translation.gui_to_hex(drag_end)),
                     ) {
@@ -366,7 +366,7 @@ impl DemoApp {
                         self.translation.gui_to_hex(drag_end),
                     )) as HexCoord;
                     if self.drag_selection == DragSelection::Disk {
-                        for (hex, current_radius) in HexDiskIterator::new(center) {
+                        for (hex, current_radius) in DiskIterator::new(center) {
                             if current_radius > radius {
                                 break;
                             }
@@ -375,7 +375,7 @@ impl DemoApp {
                             }
                         }
                     } else {
-                        for hex in HexRingIterator::new(center, radius) {
+                        for hex in RingIterator::new(center, radius) {
                             if grid.has_hex(hex) {
                                 grid.hex_mut(hex).is_active = true;
                             }

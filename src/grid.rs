@@ -1,5 +1,5 @@
 use crate::{
-    HexCoord, HexRegionIterator,
+    HexCoord, HexRectangleIterator,
     container::HexPosContainer,
     corner::{HexCorner, NormHexCorner},
     corner_pos::HexCornerPos,
@@ -7,7 +7,7 @@ use crate::{
     edge_pos::HexEdgePos,
     grid_size::HexGridSize,
     pos::HexPos,
-    region::{HexCornerIterator, HexEdgeIterator},
+    rectangle::{HexRectangleCornerIterator, HexRectangleEdgeIterator},
 };
 
 /// A hexagonal grid of hexes, edges, and corners, with associated data for each.
@@ -210,12 +210,12 @@ impl<H, E, C> HexGrid<H, E, C> {
     }
 
     /// Returns an iterator over the positions of all edges in the grid.
-    pub fn iter_edges(&self) -> HexEdgeIterator {
+    pub fn iter_edges(&self) -> HexRectangleEdgeIterator {
         self.size.iter_edges()
     }
 
     /// Returns an iterator over the positions of all corners in the grid.
-    pub fn iter_corners(&self) -> HexCornerIterator {
+    pub fn iter_corners(&self) -> HexRectangleCornerIterator {
         self.size.iter_corners()
     }
 
@@ -364,7 +364,7 @@ impl<H, E, C> Default for HexGrid<H, E, C> {
 
 impl<H, E, C> HexPosContainer for HexGrid<H, E, C> {
     type Iterator<'c>
-        = HexRegionIterator
+        = HexRectangleIterator
     where
         Self: 'c;
 
@@ -384,7 +384,7 @@ impl<H, E, C> HexPosContainer for HexGrid<H, E, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::HexRegion;
+    use crate::HexRectangle;
     use quickcheck_macros::quickcheck;
 
     #[quickcheck]
@@ -499,7 +499,7 @@ mod tests {
             for height in 0..=3 {
                 if let Ok(size) = HexGridSize::new(width, height) {
                     let grid = HexGrid::<()>::new_with_defaults(size);
-                    for pos in HexRegion::new(-3, -3, width + 2, height + 2).iter_hexes() {
+                    for pos in HexRectangle::new(-3, -3, width + 2, height + 2).iter_hexes() {
                         if grid.has_hex(pos) {
                             eprintln!("size: {}, pos: {}", size, pos);
                             grid.hex(pos);

@@ -2,16 +2,16 @@ use crate::{container::HexPosContainer, edge::HexEdge, edge_pos::HexEdgePos, pos
 use std::collections::HashSet;
 
 /// An iterator that yields the edges on the perimeter of a collection of hexagons.
-pub struct HexPerimeterIterator<'c, C: HexPosContainer> {
+pub struct PerimeterIterator<'c, C: HexPosContainer> {
     container: &'c C,
     hex_iter: Option<C::Iterator<'c>>,
     edges_seen: HashSet<HexEdgePos>,
     #[cfg(debug_assertions)]
     items_produced: usize,
-    state: HexPerimeterIteratorState,
+    state: PerimeterIteratorState,
 }
 
-enum HexPerimeterIteratorState {
+enum PerimeterIteratorState {
     FindStartingHex,
     YieldOne {
         starting_hex: HexPos,
@@ -25,7 +25,7 @@ enum HexPerimeterIteratorState {
     },
 }
 
-impl<'c, C> HexPerimeterIterator<'c, C>
+impl<'c, C> PerimeterIterator<'c, C>
 where
     C: HexPosContainer,
 {
@@ -39,7 +39,7 @@ where
             container,
             hex_iter: Some(container.iter_hexes()),
             edges_seen: HashSet::with_capacity(6 * container.len()),
-            state: HexPerimeterIteratorState::FindStartingHex,
+            state: PerimeterIteratorState::FindStartingHex,
             #[cfg(debug_assertions)]
             items_produced: 0,
         }
@@ -61,7 +61,7 @@ where
             container,
             hex_iter: None,
             edges_seen,
-            state: HexPerimeterIteratorState::YieldOne {
+            state: PerimeterIteratorState::YieldOne {
                 starting_hex,
                 starting_edge,
             },
@@ -86,7 +86,7 @@ where
     }
 }
 
-impl<'c, C> Iterator for HexPerimeterIterator<'c, C>
+impl<'c, C> Iterator for PerimeterIterator<'c, C>
 where
     C: HexPosContainer,
 {
@@ -94,7 +94,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.state {
-            HexPerimeterIteratorState::FindStartingHex => loop {
+            PerimeterIteratorState::FindStartingHex => loop {
                 let starting_hex = self.hex_iter.as_mut()?.next()?;
                 let exterior_edge = HexEdge::ALL
                     .into_iter()
@@ -104,18 +104,18 @@ where
                         .edges_seen
                         .insert(HexEdgePos::from((starting_hex, starting_edge)))
                 {
-                    self.state = HexPerimeterIteratorState::YieldOne {
+                    self.state = PerimeterIteratorState::YieldOne {
                         starting_hex,
                         starting_edge,
                     };
                     return self.next();
                 }
             },
-            HexPerimeterIteratorState::YieldOne {
+            PerimeterIteratorState::YieldOne {
                 starting_hex,
                 starting_edge,
             } => {
-                self.state = HexPerimeterIteratorState::TraverseBoundary {
+                self.state = PerimeterIteratorState::TraverseBoundary {
                     starting_hex,
                     starting_edge,
                     current_hex: starting_hex,
@@ -124,7 +124,7 @@ where
                 self.increment_items_produced();
                 Some(HexEdgePos::from((starting_hex, starting_edge)))
             }
-            HexPerimeterIteratorState::TraverseBoundary {
+            PerimeterIteratorState::TraverseBoundary {
                 starting_hex,
                 starting_edge,
                 current_hex,
@@ -141,11 +141,11 @@ where
 
                 if hex == starting_hex && edge == starting_edge {
                     // Completed one full perimeter, find next starting point
-                    self.state = HexPerimeterIteratorState::FindStartingHex;
+                    self.state = PerimeterIteratorState::FindStartingHex;
                     self.next()
                 } else if self.edges_seen.insert(HexEdgePos::from((hex, edge))) {
                     // Found new edge, continue traversal
-                    self.state = HexPerimeterIteratorState::TraverseBoundary {
+                    self.state = PerimeterIteratorState::TraverseBoundary {
                         starting_hex,
                         starting_edge,
                         current_hex: hex,
@@ -156,7 +156,7 @@ where
                 } else {
                     // Edge already seen but not back at start - something is wrong
                     // This shouldn't happen if the algorithm is correct
-                    self.state = HexPerimeterIteratorState::FindStartingHex;
+                    self.state = PerimeterIteratorState::FindStartingHex;
                     self.next()
                 }
             }
@@ -300,7 +300,7 @@ mod tests {
     #[quickcheck]
     fn perimeter(arb: TestHexPosContainer) {
         let expected_perimeter_edges = perimeter_edges(&arb.hexes);
-        let actual_perimeter_edges = HexPerimeterIterator::new(&arb.hexes).collect::<Vec<_>>();
+        let actual_perimeter_edges = PerimeterIterator::new(&arb.hexes).collect::<Vec<_>>();
         assert_eq!(expected_perimeter_edges, actual_perimeter_edges);
     }
 
@@ -308,7 +308,7 @@ mod tests {
     fn perimeter_from(arb: ContiguousHexPosContainer) {
         let expected_perimeter_edges = perimeter_edges(&arb.hexes);
         let actual_perimeter_edges =
-            HexPerimeterIterator::new_from(HexPos::new(0, 0), &arb.hexes).collect::<Vec<_>>();
+            PerimeterIterator::new_from(HexPos::new(0, 0), &arb.hexes).collect::<Vec<_>>();
         assert_eq!(expected_perimeter_edges, actual_perimeter_edges);
     }
 }

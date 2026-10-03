@@ -4,7 +4,7 @@ use crate::{HexCoord, HexEdge, HexPos};
 /// around a given center hexagon, yielding hexagons at a specified distance
 /// from the center.
 #[derive(Debug, Clone)]
-pub struct HexRingIterator {
+pub struct RingIterator {
     pos: HexPos,
     start: HexPos,
     direction: HexEdge,
@@ -13,7 +13,7 @@ pub struct HexRingIterator {
     radius: HexCoord,
 }
 
-impl HexRingIterator {
+impl RingIterator {
     /// Creates a new iterator that will yield the positions of hexagons in a
     /// ring around the given `center` hexagon, at the given `radius`.  For the
     /// special case of radius 0, the iterator yields only the center hexagon.
@@ -45,7 +45,7 @@ impl HexRingIterator {
     }
 }
 
-impl Iterator for HexRingIterator {
+impl Iterator for RingIterator {
     type Item = HexPos;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -70,18 +70,18 @@ impl Iterator for HexRingIterator {
 /// given center hexagon, starting from the center and expanding outward. The
 /// iterator yields a pair containing the position of the hexagon and its
 /// distance from the center, and never terminates.
-pub struct HexDiskIterator(HexRingIterator);
+pub struct DiskIterator(RingIterator);
 
-impl HexDiskIterator {
+impl DiskIterator {
     /// Creates a new iterator that will yield the positions of hexagons in a
     /// hexagonal disk around the given `center` hexagon, starting from the
     /// center and expanding outward.
     pub fn new(center: HexPos) -> Self {
-        Self(HexRingIterator::new(center, 0))
+        Self(RingIterator::new(center, 0))
     }
 }
 
-impl Iterator for HexDiskIterator {
+impl Iterator for DiskIterator {
     type Item = (HexPos, HexCoord);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -93,7 +93,7 @@ impl Iterator for HexDiskIterator {
             } else {
                 self.0.pos.neighbor(HexEdge::TopRight)
             };
-            self.0 = HexRingIterator {
+            self.0 = RingIterator {
                 pos: next_pos,
                 start: next_pos,
                 direction: HexEdge::TopLeft,
@@ -115,14 +115,14 @@ mod tests {
 
     #[quickcheck]
     fn ring_iterator0(center: HexPos) {
-        let mut iter = HexRingIterator::new(center, 0);
+        let mut iter = RingIterator::new(center, 0);
         assert_eq!(iter.next(), Some(center));
         assert_eq!(iter.next(), None);
     }
 
     #[quickcheck]
     fn ring_iterator1(center: HexPos) {
-        let ring_positions = HexRingIterator::new(center, 1).take(7).collect::<Vec<_>>();
+        let ring_positions = RingIterator::new(center, 1).take(7).collect::<Vec<_>>();
         let expected_positions = HexEdge::ALL
             .into_iter()
             .map(|edge| center.neighbor(edge))
@@ -134,7 +134,7 @@ mod tests {
     fn ring_iterator2(center: HexPos) {
         let (u, v) = center.u_v();
         let radius = 2;
-        let ring_positions = HexRingIterator::new(center, radius)
+        let ring_positions = RingIterator::new(center, radius)
             .take((6 * radius + 1) as usize)
             .collect::<Vec<_>>();
         let expected_positions = vec![
@@ -157,7 +157,7 @@ mod tests {
     #[quickcheck]
     fn ring_iterator_size(center: HexPos, radius: u8) {
         let radius = radius as HexCoord;
-        let ring_positions = HexRingIterator::new(center, radius).collect::<Vec<_>>();
+        let ring_positions = RingIterator::new(center, radius).collect::<Vec<_>>();
         let expected_size = if radius == 0 { 1 } else { 6 * radius };
         assert_eq!(ring_positions.len(), expected_size as usize);
         for pos in ring_positions {
@@ -169,9 +169,9 @@ mod tests {
     fn disk_iterator(center: HexPos, radius: u8) {
         let radius = radius % 64;
         let expected = (0..=radius as HexCoord)
-            .flat_map(|r| HexRingIterator::new(center, r).map(move |pos| (pos, r)))
+            .flat_map(|r| RingIterator::new(center, r).map(move |pos| (pos, r)))
             .collect::<HashSet<_>>();
-        let actual = HexDiskIterator::new(center)
+        let actual = DiskIterator::new(center)
             .take_while(|(_, r)| *r <= radius as HexCoord)
             .collect::<HashSet<_>>();
         assert_eq!(actual, expected);

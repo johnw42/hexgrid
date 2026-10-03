@@ -1,10 +1,10 @@
 use crate::{
-    HexCoord, HexRegion,
+    HexCoord, HexRectangle,
     container::HexPosContainer,
     corner_pos::HexCornerPos,
     edge_pos::HexEdgePos,
     pos::HexPos,
-    region::{HexCornerIterator, HexEdgeIterator, HexRegionIterator},
+    rectangle::{HexRectangleCornerIterator, HexRectangleEdgeIterator, HexRectangleIterator},
 };
 use std::fmt::Display;
 
@@ -102,22 +102,22 @@ impl HexGridSize {
     /// position.  This is true if the edge is part of a hex in the grid, or if
     /// the edge is on the boundary of the grid.
     pub fn contains_edge(&self, edge_pos: HexEdgePos) -> bool {
-        HexRegion::from(*self).contains_edge(edge_pos)
+        HexRectangle::from(*self).contains_edge(edge_pos)
     }
 
     /// Return true iff the grid of this size contains the specified corner
     /// position.  This is true if the corner is part of a hex in the grid, or if
     /// the corner is on the boundary of the grid.
     pub fn contains_corner(&self, corner_pos: HexCornerPos) -> bool {
-        HexRegion::from(*self).contains_corner(corner_pos)
+        HexRectangle::from(*self).contains_corner(corner_pos)
     }
 
-    pub fn iter_edges(&self) -> HexEdgeIterator {
-        HexRegion::from(*self).iter_edges()
+    pub fn iter_edges(&self) -> HexRectangleEdgeIterator {
+        HexRectangle::from(*self).iter_edges()
     }
 
-    pub fn iter_corners(&self) -> HexCornerIterator {
-        HexRegion::from(*self).iter_corners()
+    pub fn iter_corners(&self) -> HexRectangleCornerIterator {
+        HexRectangle::from(*self).iter_corners()
     }
 
     #[cfg(test)]
@@ -137,32 +137,32 @@ impl Display for HexGridSize {
     }
 }
 
-impl From<HexGridSize> for HexRegion {
+impl From<HexGridSize> for HexRectangle {
     fn from(size: HexGridSize) -> Self {
         Self::new(0, 0, size.width - 1, size.height - 1)
     }
 }
 
 impl HexPosContainer for HexGridSize {
-    type Iterator<'c> = HexRegionIterator;
+    type Iterator<'c> = HexRectangleIterator;
 
     fn contains_hex(&self, pos: HexPos) -> bool {
-        HexRegion::from(*self).contains_hex(pos)
+        HexRectangle::from(*self).contains_hex(pos)
     }
 
     fn iter_hexes(&self) -> Self::Iterator<'_> {
-        HexRegionIterator::new(HexRegion::from(*self))
+        HexRectangle::from(*self).iter_hexes()
     }
 
     fn len(&self) -> usize {
-        HexRegion::from(*self).len()
+        HexRectangle::from(*self).len()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{HexCorner, HexEdge, HexPerimeterIterator};
+    use crate::{HexCorner, HexEdge, PerimeterIterator};
     use quickcheck::Arbitrary;
     use quickcheck_macros::quickcheck;
     use std::collections::HashSet;
@@ -261,7 +261,7 @@ mod tests {
 
     #[quickcheck]
     fn contains_edge(size: HexGridSize) {
-        for edge_pos in HexPerimeterIterator::new(&size) {
+        for edge_pos in PerimeterIterator::new(&size) {
             assert!(size.contains_edge(edge_pos));
             let neighbor_edge = HexEdgePos::from((
                 edge_pos.pos().neighbor(edge_pos.edge()),
@@ -292,7 +292,7 @@ mod tests {
 
     #[quickcheck]
     fn contains_corner(size: HexGridSize) {
-        for edge_pos in HexPerimeterIterator::new(&size) {
+        for edge_pos in PerimeterIterator::new(&size) {
             let neighbor_edge = HexEdgePos::from((
                 edge_pos.pos().neighbor(edge_pos.edge()),
                 edge_pos.edge().opposite(),

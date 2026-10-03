@@ -2,7 +2,7 @@ use crate::HexPos;
 
 /// An iterator that yields the positions of hexagons along an approximate
 /// straight line between two hexagonal grid positions.
-pub struct HexLineIterator {
+pub struct LineIterator {
     x: f64,
     y: f64,
     dx: f64,
@@ -16,7 +16,7 @@ pub struct HexLineIterator {
 /// positions.  The iterator will yield the `start` position first, and the
 /// exact path is not guaranteed, but it will always be
 /// a shortest path between the two positions.
-impl HexLineIterator {
+impl LineIterator {
     pub fn new(start: HexPos, end: HexPos) -> Self {
         // Use 64-bit floats to ensure the full range of i32 coordinates can be
         // represented without loss of precision.
@@ -36,7 +36,7 @@ impl HexLineIterator {
     }
 }
 
-impl Iterator for HexLineIterator {
+impl Iterator for LineIterator {
     type Item = HexPos;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -62,7 +62,7 @@ mod tests {
     #[quickcheck]
     fn line_iterator_terminates(start: HexPos, end: HexPos) {
         dbg!(&start, &end);
-        let iter = HexLineIterator::new(start, end);
+        let iter = LineIterator::new(start, end);
         let (du, dv) = (start - end).du_dv();
         let to_take = (2 * du.abs() + dv.abs() + 1) as usize;
         let count = iter.take(to_take).count();

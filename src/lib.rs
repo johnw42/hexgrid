@@ -21,12 +21,10 @@
 //! Some special iterators are provided for particular traversals of the
 //! hexagonal grid:
 //!
-//! * [`HexRegionIterator`] iterates over all hexagonal grid positions in a
-//!   rectangular region defined by minimum and maximum u and v coordinates.
 //! * [`RingIterator`] iterates over the positions of hexagons in a ring
 //!   around a given center hexagon, at a given radius.
-//! * [`HexPerimeterIterator`] iterates the boundary of a group of hexagons.
-//! * [`HexLineIterator`] iterates a straight line between two hexagons.
+//! * [`PerimeterIterator`] iterates the boundary of a group of hexagons.
+//! * [`LineIterator`] iterates a straight line between two hexagons.
 //!
 //! Various methods are provided for converting between hexagonal grid
 //! coordinates and Cartesian coordinates and angles, following math
@@ -38,7 +36,7 @@
 //!   hexagon given its Cartesian coordinates.
 //! * [`HexPos::cartesian_corner`], for finding the Cartesian coordinates of a the
 //!   corners of a hexagon.
-//! * [`HexRegionIterator::cartesian`], for iterating over all hexagonal grid
+//! * [`RectangleIterator::cartesian`], for iterating over all hexagonal grid
 //!   positions that intersect a rectangular region defined by minimum and
 //!   maximum Cartesian coordinates.
 
@@ -53,12 +51,12 @@ pub use crate::{
     geometric::HexGeometric,
     grid::HexGrid,
     grid_size::{HexGridSize, HexGridSizeError},
-    line::HexLineIterator,
+    line::LineIterator,
     offset::OffsetPos,
-    perimeter::HexPerimeterIterator,
+    perimeter::PerimeterIterator,
     pos::{HexPos, NearestCorner, NearestEdge},
-    region::{HexRegion, HexRegionIterator},
-    ring::{HexDiskIterator, HexRingIterator},
+    rectangle::{HexRectangle, HexRectangleIterator},
+    ring::{DiskIterator, RingIterator},
 };
 
 mod container;
@@ -75,7 +73,7 @@ mod line;
 mod offset;
 mod perimeter;
 mod pos;
-mod region;
+mod rectangle;
 mod ring;
 
 /// Integer type used for hex grid coordinates, and other related purposes.

@@ -5,15 +5,15 @@ use crate::{
 
 /// A rectangular region of a hexagonal grid, defined by minimum and maximum u and v coordinates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct HexRegion {
+pub struct HexRectangle {
     min_u: HexCoord,
     min_v: HexCoord,
     max_u: HexCoord,
     max_v: HexCoord,
 }
 
-impl HexRegion {
-    /// Create a new `HexRegion` with the specified minimum and maximum u and v coordinates.
+impl HexRectangle {
+    /// Create a new rectangle with the specified minimum and maximum u and v coordinates.
     ///
     /// The region will be empty if the minimum coordinates are greater than the maximum coordinates.
     pub fn new(min_u: HexCoord, min_v: HexCoord, max_u: HexCoord, max_v: HexCoord) -> Self {
@@ -23,6 +23,22 @@ impl HexRegion {
             max_u,
             max_v,
         }
+    }
+
+    /// Creates a new rectangle that contains all hexagonal grid
+    /// positions in the rectangular area defined by the given minimum and
+    /// maximum Cartesian coordinates, inclusive.  The rectangle will include all
+    /// hexagonal grid positions that intersect the rectangle defined by the
+    /// given Cartesian coordinates.
+    pub fn cartesian(min: Cartesian, max: Cartesian) -> Self {
+        let (min_x, min_y) = min;
+        let (max_x, max_y) = max;
+        Self::new(
+            ((min_x + HEX_WIDTH / 2.0) / HEX_HORIZONTAL_SPACING).floor() as HexCoord,
+            (min_y / HEX_VERTICAL_SPACING).floor() as HexCoord,
+            ((max_x - HEX_WIDTH / 2.0) / HEX_HORIZONTAL_SPACING).ceil() as HexCoord,
+            (max_y / HEX_VERTICAL_SPACING).ceil() as HexCoord,
+        )
     }
 
     /// The width of the region in terms of the number of hexes in the u direction.
@@ -35,7 +51,7 @@ impl HexRegion {
         self.max_v - self.min_v + 1
     }
 
-    /// Return true iff the grid of this size contains the specified edge
+    /// Return true iff a grid of this size contains the specified edge
     /// position.  This is true if the edge is part of a hex in the grid, or if
     /// the edge is on the boundary of the grid.
     pub fn contains_edge(&self, edge_pos: HexEdgePos) -> bool {
@@ -64,7 +80,7 @@ impl HexRegion {
         }
     }
 
-    /// Return true iff the grid of this size contains the specified corner
+    /// Return true iff a grid of this size contains the specified corner
     /// position.  This is true if the corner is part of a hex in the grid, or if
     /// the corner is on the boundary of the grid.
     pub fn contains_corner(&self, corner_pos: HexCornerPos) -> bool {
@@ -90,17 +106,19 @@ impl HexRegion {
             || self.contains_hex(pos)
     }
 
-    pub fn iter_edges(&self) -> HexEdgeIterator {
-        HexEdgeIterator::new(*self)
+    /// Gets an interator over the edges of all hexagons in the rectangle.
+    pub fn iter_edges(&self) -> HexRectangleEdgeIterator {
+        HexRectangleEdgeIterator::new(*self)
     }
 
-    pub fn iter_corners(&self) -> HexCornerIterator {
-        HexCornerIterator::new(*self)
+    /// Gets an interator over the corners of all hexagons in the rectangle.
+    pub fn iter_corners(&self) -> HexRectangleCornerIterator {
+        HexRectangleCornerIterator::new(*self)
     }
 }
 
-impl HexPosContainer for HexRegion {
-    type Iterator<'c> = HexRegionIterator;
+impl HexPosContainer for HexRectangle {
+    type Iterator<'c> = HexRectangleIterator;
 
     fn contains_hex(&self, pos: HexPos) -> bool {
         pos.u() >= self.min_u
@@ -110,7 +128,7 @@ impl HexPosContainer for HexRegion {
     }
 
     fn iter_hexes(&self) -> Self::Iterator<'_> {
-        HexRegionIterator::new(*self)
+        HexRectangleIterator::new(*self)
     }
 
     fn len(&self) -> usize {
@@ -119,12 +137,8 @@ impl HexPosContainer for HexRegion {
     }
 }
 
-/// An iterator over all hexagonal grid positions in a rectangular area, in
-/// row-major order, starting with the bottom-left corner.  The area is defined
-/// by the minimum and maximum u and v coordinates, inclusive.  The iterator
-/// will only return positions where u + v is even, as required by the hexagonal
-/// grid coordinate system.
-pub struct HexRegionIterator {
+/// The type of iterator returned by [`HexRectangle::iter_hexes`].
+pub struct HexRectangleIterator {
     u: HexCoord,
     v: HexCoord,
     min_u: HexCoord,
@@ -132,15 +146,9 @@ pub struct HexRegionIterator {
     max_v: HexCoord,
 }
 
-impl HexRegionIterator {
-    /// Creates a new iterator that will iterate over all hexagonal grid
-    /// positions in the rectangular area defined by the given minimum and
-    /// maximum u and v coordinates, inclusive.  The iterator will only return
-    /// positions where u + v is even, as required by the hexagonal grid
-    /// coordinate system.  If `min_u` > `max_u` or `min_v` > `max_v`, the
-    /// iterator will be empty.
-    pub fn new(region: HexRegion) -> Self {
-        let HexRegion {
+impl HexRectangleIterator {
+    fn new(region: HexRectangle) -> Self {
+        let HexRectangle {
             min_u,
             min_v,
             max_u,
@@ -154,25 +162,9 @@ impl HexRegionIterator {
             max_v,
         }
     }
-
-    /// Creates a new iterator that will iterate over all hexagonal grid
-    /// positions in the rectangular area defined by the given minimum and
-    /// maximum Cartesian coordinates, inclusive.  The iterator will include all
-    /// hexagonal grid positions that intersect the rectangle defined by the
-    /// given Cartesian coordinates.
-    pub fn cartesian(min: Cartesian, max: Cartesian) -> Self {
-        let (min_x, min_y) = min;
-        let (max_x, max_y) = max;
-        Self::new(HexRegion {
-            min_u: ((min_x + HEX_WIDTH / 2.0) / HEX_HORIZONTAL_SPACING).floor() as HexCoord,
-            min_v: (min_y / HEX_VERTICAL_SPACING).floor() as HexCoord,
-            max_u: ((max_x - HEX_WIDTH / 2.0) / HEX_HORIZONTAL_SPACING).ceil() as HexCoord,
-            max_v: (max_y / HEX_VERTICAL_SPACING).ceil() as HexCoord,
-        })
-    }
 }
 
-impl Iterator for HexRegionIterator {
+impl Iterator for HexRectangleIterator {
     type Item = HexPos;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -195,17 +187,17 @@ impl Iterator for HexRegionIterator {
     }
 }
 
-pub struct HexEdgeIterator {
+pub struct HexRectangleEdgeIterator {
     min_u: HexCoord,
     min_v: HexCoord,
     max_u: HexCoord,
     edge: HexEdge,
     pos: Option<HexPos>,
-    pos_iter: HexRegionIterator,
+    pos_iter: HexRectangleIterator,
 }
 
-impl HexEdgeIterator {
-    pub fn new(region: HexRegion) -> Self {
+impl HexRectangleEdgeIterator {
+    fn new(region: HexRectangle) -> Self {
         let mut pos_iter = region.iter_hexes();
         let pos = pos_iter.next();
         Self {
@@ -219,7 +211,7 @@ impl HexEdgeIterator {
     }
 }
 
-impl Iterator for HexEdgeIterator {
+impl Iterator for HexRectangleEdgeIterator {
     type Item = HexEdgePos;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -242,18 +234,18 @@ impl Iterator for HexEdgeIterator {
     }
 }
 
-pub struct HexCornerIterator {
+pub struct HexRectangleCornerIterator {
     min_u: HexCoord,
     min_v: HexCoord,
     max_u: HexCoord,
     max_v: HexCoord,
     corner: HexCorner,
     pos: Option<HexPos>,
-    pos_iter: HexRegionIterator,
+    pos_iter: HexRectangleIterator,
 }
 
-impl HexCornerIterator {
-    pub fn new(region: HexRegion) -> Self {
+impl HexRectangleCornerIterator {
+    fn new(region: HexRectangle) -> Self {
         let mut pos_iter = region.iter_hexes();
         let pos = pos_iter.next();
         Self {
@@ -268,7 +260,7 @@ impl HexCornerIterator {
     }
 }
 
-impl Iterator for HexCornerIterator {
+impl Iterator for HexRectangleCornerIterator {
     type Item = HexCornerPos;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -315,7 +307,7 @@ mod tests {
     use quickcheck_macros::quickcheck;
     use std::collections::HashSet;
 
-    impl Arbitrary for HexRegion {
+    impl Arbitrary for HexRectangle {
         fn arbitrary(g: &mut quickcheck::Gen) -> Self {
             let min_u = HexCoord::arbitrary(g) % 4;
             let min_v = HexCoord::arbitrary(g) % 4;
@@ -343,13 +335,15 @@ mod tests {
                             .into_iter()
                         }
                     })
-                    .map(move |(w, h)| HexRegion::new(min_u, min_v, min_u + w - 1, min_v + h - 1)),
+                    .map(move |(w, h)| {
+                        HexRectangle::new(min_u, min_v, min_u + w - 1, min_v + h - 1)
+                    }),
             )
         }
     }
 
     #[quickcheck]
-    fn region_iterator(size: HexRegion) {
+    fn region_iterator(size: HexRectangle) {
         let expected = (size.min_v..=size.max_v)
             .flat_map(|v| {
                 (size.min_u..=size.max_u)
@@ -362,7 +356,7 @@ mod tests {
     }
 
     #[quickcheck]
-    fn edge_iterator(region: HexRegion) {
+    fn edge_iterator(region: HexRectangle) {
         let mut seen_edges = HashSet::new();
         for pos in region.iter_hexes() {
             for edge in HexEdge::ALL {
@@ -375,7 +369,7 @@ mod tests {
     }
 
     #[quickcheck]
-    fn corner_iterator(region: HexRegion) {
+    fn corner_iterator(region: HexRectangle) {
         let mut expected_corners = HashSet::new();
         for pos in region.iter_hexes() {
             for corner in HexCorner::ALL {
