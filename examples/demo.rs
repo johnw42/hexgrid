@@ -1,9 +1,9 @@
 use eframe::egui;
 use hexgridrect::{
-    Cartesian, DiskIterator, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord, HexCorner,
-    HexCornerPos, HexEdge, HexEdgePos, HexGeometric as _, HexGrid, HexGridSize, HexPos,
-    HexPosContainer as _, HexRectangle, LineIterator, NearestCorner, NearestEdge,
-    PerimeterIterator, Real, RingIterator, Sixths,
+    Cartesian, CubicPos, DiskIterator, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord,
+    HexCorner, HexCornerPos, HexDelta, HexEdge, HexEdgePos, HexGeometric as _, HexGrid,
+    HexGridSize, HexPos, HexPosContainer as _, HexRectangle, LineIterator, NearestCorner,
+    NearestEdge, PerimeterIterator, Real, RingIterator, Sixths,
 };
 use std::collections::HashSet;
 
@@ -135,6 +135,9 @@ struct DemoApp {
     id: egui::Id,
     width: HexCoord,
     height: HexCoord,
+    // The origin is specified in (q,r) coordinates as a convience so all values are valid.
+    origin_q: HexCoord,
+    origin_r: HexCoord,
     init_selection: InitSelection,
     drag_selection: DragSelection,
     grid: Option<DemoGrid>,
@@ -158,6 +161,8 @@ impl DemoApp {
             id,
             width: INIT_WIDTH,
             height: INIT_HEIGHT,
+            origin_q: 0,
+            origin_r: 0,
             init_selection: InitSelection::None,
             drag_selection: DragSelection::Rectangle,
             grid: None,
@@ -402,6 +407,12 @@ impl eframe::App for DemoApp {
                 ui.label("Height");
                 ui.add(egui::Slider::new(&mut self.height, 0..=10));
                 ui.end_row();
+                ui.label("Origin Q");
+                ui.add(egui::Slider::new(&mut self.origin_q, 0..=10));
+                ui.end_row();
+                ui.label("Origin R");
+                ui.add(egui::Slider::new(&mut self.origin_r, 0..=10));
+                ui.end_row();
             });
             ui.label(format!("Grid size: {} x {}", self.width, self.height));
             ui.horizontal(|ui| {
@@ -446,6 +457,8 @@ impl eframe::App for DemoApp {
                     grid: self.grid.as_ref().unwrap(),
                     hover: &mut self.hover,
                     translation: &mut self.translation,
+                    origin_delta: HexPos::ORIGIN
+                        - HexPos::from(CubicPos::new(self.origin_q, self.origin_r)),
                 };
                 let response = ui.add(hex_view);
 
@@ -517,6 +530,7 @@ struct HexView<'a> {
     grid: &'a DemoGrid,
     hover: &'a mut HoverState,
     translation: &'a mut CoordinateTranslation,
+    origin_delta: HexDelta,
 }
 
 impl<'g> egui::Widget for HexView<'g> {
@@ -529,6 +543,7 @@ impl<'g> egui::Widget for HexView<'g> {
             grid,
             translation,
             hover,
+            origin_delta,
         } = self;
 
         translation.rect_offset = rect.center().to_vec2()
@@ -583,24 +598,25 @@ impl<'g> egui::Widget for HexView<'g> {
             let font_id = egui::TextStyle::Body.resolve(ui.style());
             let row_height = painter.fonts_mut(|f| f.row_height(&font_id));
             let center = translation.hex_to_gui(pos.cartesian_center());
+            let relative_pos = pos + origin_delta;
             painter.text(
                 center + egui::vec2(0.0, -row_height),
                 egui::Align2::CENTER_CENTER,
-                format!("{pos}"),
+                format!("{relative_pos}"),
                 font_id.clone(),
                 egui::Color32::LIGHT_BLUE,
             );
             painter.text(
                 center,
                 egui::Align2::CENTER_CENTER,
-                format!("{}", pos.to_cubic()),
+                format!("{}", relative_pos.to_cubic()),
                 font_id.clone(),
                 egui::Color32::YELLOW,
             );
             painter.text(
                 center + egui::vec2(0.0, row_height),
                 egui::Align2::CENTER_CENTER,
-                format!("{}", pos.to_offset()),
+                format!("{}", relative_pos.to_offset()),
                 font_id,
                 egui::Color32::MAGENTA,
             );
