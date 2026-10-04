@@ -17,7 +17,8 @@ The distinguishing feature of this crate are:
 
 - Use of rectagular coordinates
 - Use of a rectangular grid
-- Support for attaching data to edges and corners of hexagons
+- Support for attaching data to edges and corners of hexagons, avoiding
+  duplication caused by edges and corners being shared between hexagons.
 
 # References
 

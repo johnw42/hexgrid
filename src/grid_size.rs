@@ -39,8 +39,8 @@ pub enum HexGridSizeError {
     WidthOneHeightEven(HexCoord),
 }
 
-/// The size of a [`HexGrid`] in terms of the number of hexes in the u and v
-/// directions.
+/// The size of a [`HexGrid`](crate::HexGrid) in terms of the number of hexes in
+/// the u and v directions.
 ///
 /// Some sizes are invalid, for example a width of 1 and a height of 3 is
 /// invalid because the hexes would not be able to form a proper grid. See

@@ -2,7 +2,6 @@ use crate::{
     HexCoord, Sixths,
     corner::{HexCorner, NormHexCorner},
     delta::HexDelta,
-    geometric::HexGeometric,
     pos::HexPos,
 };
 use std::{
@@ -95,6 +94,15 @@ impl HexCornerPos {
             ],
         }
     }
+
+    /// Returns the result of rotating the corner position around the given
+    /// center by the given number of 60 degree steps.
+    pub fn rotate_around(self, center: HexPos, steps: Sixths) -> Self {
+        Self {
+            pos: self.pos.rotate_around(center, steps),
+            corner: self.corner.rotate(steps),
+        }
+    }
 }
 
 impl<C> From<(HexCoord, HexCoord, C)> for HexCornerPos<C>
@@ -150,22 +158,6 @@ where
     fn sub(self, delta: HexDelta) -> Self::Output {
         Self {
             pos: self.pos - delta,
-            corner: self.corner,
-        }
-    }
-}
-
-impl HexGeometric for HexCornerPos {
-    fn rotate_around(self, center: HexPos, steps: Sixths) -> Self {
-        Self {
-            pos: self.pos.rotate_around(center, steps),
-            corner: self.corner.rotate(steps),
-        }
-    }
-
-    fn translate(self, delta: HexDelta) -> Self {
-        Self {
-            pos: self.pos.translate(delta),
             corner: self.corner,
         }
     }

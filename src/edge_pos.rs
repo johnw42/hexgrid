@@ -2,12 +2,12 @@ use crate::{
     HexCoord, Sixths,
     delta::HexDelta,
     edge::{HexEdge, NormHexEdge},
-    geometric::HexGeometric,
     pos::HexPos,
 };
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
+    ops::{Add, Sub},
 };
 
 /// A struct representing a position of an edge of a hexagon in a hexagonal
@@ -85,6 +85,16 @@ impl HexEdgePos {
             (pos.neighbor(edge), edge.opposite()).into(),
         ]
     }
+
+    /// Returns the result of rotating the edge position around the given
+    /// center by the given number of 60 degree steps.
+    pub fn rotate_around(self, center: HexPos, steps: Sixths) -> Self {
+        (
+            self.pos.rotate_around(center, steps),
+            self.edge.rotate(steps),
+        )
+            .into()
+    }
 }
 
 impl HexEdgePos<NormHexEdge> {
@@ -123,17 +133,31 @@ where
     }
 }
 
-impl HexGeometric for HexEdgePos {
-    fn rotate_around(self, center: HexPos, steps: Sixths) -> Self {
-        (
-            self.pos.rotate_around(center, steps),
-            self.edge.rotate(steps),
-        )
-            .into()
-    }
+impl<E> Add<HexDelta> for HexEdgePos<E>
+where
+    E: Into<HexEdge>,
+{
+    type Output = Self;
 
-    fn translate(self, delta: HexDelta) -> Self {
-        (self.pos.translate(delta), self.edge).into()
+    fn add(self, delta: HexDelta) -> Self::Output {
+        Self {
+            pos: self.pos + delta,
+            edge: self.edge,
+        }
+    }
+}
+
+impl<E> Sub<HexDelta> for HexEdgePos<E>
+where
+    E: Into<HexEdge>,
+{
+    type Output = Self;
+
+    fn sub(self, delta: HexDelta) -> Self::Output {
+        Self {
+            pos: self.pos - delta,
+            edge: self.edge,
+        }
     }
 }
 

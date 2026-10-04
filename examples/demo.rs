@@ -1,9 +1,9 @@
 use eframe::egui;
 use hexgridrect::{
     Cartesian, CubicPos, DiskIterator, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, HexCoord,
-    HexCorner, HexCornerPos, HexDelta, HexEdge, HexEdgePos, HexGeometric as _, HexGrid,
-    HexGridSize, HexPos, HexPosContainer as _, HexRectangle, LineIterator, NearestCorner,
-    NearestEdge, PerimeterIterator, Real, RingIterator, Sixths,
+    HexCorner, HexCornerPos, HexDelta, HexEdge, HexEdgePos, HexGrid, HexGridSize, HexPos,
+    HexPosContainer as _, HexRectangle, LineIterator, NearestCorner, NearestEdge,
+    PerimeterIterator, Real, RingIterator, Sixths,
 };
 use std::collections::HashSet;
 

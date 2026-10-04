@@ -1,5 +1,4 @@
 use crate::delta::HexDelta;
-use crate::geometric::HexGeometric;
 use crate::{Cartesian, HexCoord, Real, corner::HexCorner, edge::HexEdge};
 use crate::{CubicPos, HEX_HORIZONTAL_SPACING, HEX_VERTICAL_SPACING, OffsetPos, SQRT_3, Sixths};
 use std::f64::consts::{FRAC_PI_3, FRAC_PI_6};
@@ -30,7 +29,7 @@ pub struct NearestEdge {
 /// increases to the right, and the v coordinate increases upwards.
 ///
 /// These are "double height" coordinates in the terminology of
-/// [https://www.redblobgames.com/grids/hexagons].
+/// <https://www.redblobgames.com/grids/hexagons>.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HexPos(HexCoord, HexCoord);
 
@@ -296,6 +295,12 @@ impl HexPos {
     pub fn to_offset(self) -> OffsetPos {
         self.into()
     }
+
+    /// Returns the result of rotating the hexagon around the given center by
+    /// the given number of 60 degree steps.
+    pub fn rotate_around(self, center: HexPos, steps: Sixths) -> Self {
+        (self - center).rotated(steps) + center
+    }
 }
 
 impl From<(HexCoord, HexCoord)> for HexPos {
@@ -317,16 +322,6 @@ impl Sub<HexDelta> for HexPos {
 
     fn sub(self, other: HexDelta) -> Self {
         HexPos(self.0 - other.du(), self.1 - other.dv())
-    }
-}
-
-impl HexGeometric for HexPos {
-    fn rotate_around(self, center: HexPos, steps: Sixths) -> Self {
-        (self - center).rotated(steps) + center
-    }
-
-    fn translate(self, delta: HexDelta) -> Self {
-        self + delta
     }
 }
 
